@@ -1,0 +1,55 @@
+"""Document upload: Uploaded -> Processing -> Analyzed -> Ready."""
+from __future__ import annotations
+import time
+import uuid
+from fastapi import APIRouter, UploadFile, File, Form
+from pydantic import BaseModel
+from backend.app.documents import extractor, context_builder
+from backend.app.session import manager as store
+
+router = APIRouter(prefix="/api/documents", tags=["documents"])
+
+@router.post("/upload")
+async def upload(file: UploadFile = File(...), kind: str = Form("document")):
+    data = await file.read()
+    if not data:
+        return {"error": f"{file.filename} is empty", "code": "empty_file", "status": "failed"}
+    if len(data) > 15 * 1024 * 1024:
+        return {"error": f"{file.filename} too large (max 15MB)", "code": "too_large", "status": "failed"}
+    try:
+        text = extractor.extract_text(file.filename or "upload.txt", data)
+    except ValueError as exc:
+        return {"error": str(exc), "code": "invalid_document", "status": "failed"}
+    doc = {"id": uuid.uuid4().hex[:8], "filename": file.filename, "kind": kind,
+           "chars": len(text), "text": text[:20000],  # stored excerpt; full truncated
+           "status": "analyzed", "uploaded": time.time()}
+    store.save_document(doc)
+    sig = context_builder.extract_signals(
+        jd_text=text if kind == "jd" else "",
+        resume_text=text if kind == "resume" else "")
+    return {"status": "ready", "doc_id": doc["id"], "filename": doc["filename"],
+            "chars": doc["chars"], "signals": sig,
+            "flow": ["uploaded", "processing", "analyzed", "ready"]}
+
+@router.get("/list")
+def list_docs():
+    docs = store.list_documents()
+    return {"documents": [{k: d[k] for k in ("id", "filename", "kind", "chars", "status") if k in d} for d in docs]}
+
+@router.post("/clear")
+def clear():
+    store.clear_documents()
+    return {"status": "cleared"}
+
+class RemoveIn(BaseModel):
+    doc_id: str = ""
+
+@router.post("/remove")
+def remove(inp: RemoveIn):
+    from backend.app.session.manager import _load, _save
+    docs = _load("documents.json", [])
+    kept = [d for d in docs if d["id"] != inp.doc_id]
+    if len(kept) == len(docs):
+        return {"error": "document not found", "code": "no_doc"}
+    _save("documents.json", kept)
+    return {"status": "removed", "doc_id": inp.doc_id}
