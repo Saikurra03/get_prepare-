@@ -2,15 +2,30 @@
 from __future__ import annotations
 import os
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from backend.app.api import routes_coach, routes_documents, routes_interview, routes_session
+from backend.app.api import routes_coach, routes_documents, routes_interview, routes_session, routes_stt, routes_tts
 
 app = FastAPI(title="BERREADY — Communication + Interview Coach", version="0.2.0")
+
+# CORS — allow Netlify frontend (or any configured origin) to call the API.
+_cors_raw = os.getenv("CORS_ORIGINS", "*")
+_origins = [o.strip() for o in _cors_raw.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(routes_coach.router)
 app.include_router(routes_documents.router)
 app.include_router(routes_interview.router)
 app.include_router(routes_session.router)
+app.include_router(routes_stt.router)
+app.include_router(routes_tts.router)
 
 # backend/app/main.py -> up 2 = BEREADY_BOY, + frontend
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -30,6 +45,7 @@ PAGES = {
     "history": "history.html",       # Session History
     "profile": "profile.html",       # Communication Profile
     "settings": "settings.html",
+    "slang": "slang.html",
 }
 
 @app.get("/api/health")

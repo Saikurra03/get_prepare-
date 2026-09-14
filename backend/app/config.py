@@ -28,5 +28,11 @@ class Settings:
     key_cooldown_seconds: int = field(default_factory=lambda: int(os.getenv("AI_KEY_COOLDOWN_SECONDS", "60")))
     retry_base_ms: int = field(default_factory=lambda: int(os.getenv("AI_RETRY_BASE_MS", "150")))
     data_dir: str = field(default_factory=lambda: os.getenv("DATA_DIR", "backend/data"))
+    # STT config
+    stt_model: str = field(default_factory=lambda: os.getenv("STT_MODEL", "whisper-large-v3-turbo"))
+    stt_provider: str = field(default_factory=lambda: os.getenv("STT_PROVIDER", "groq"))
+    # ElevenLabs TTS config
+    elevenlabs_api_key: str = field(default_factory=lambda: os.getenv("ELEVENLABS_API_KEY", ""))
+    elevenlabs_voice_id: str = field(default_factory=lambda: os.getenv("ELEVENLABS_VOICE_ID", ""))
 
 settings = Settings()

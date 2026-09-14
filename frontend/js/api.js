@@ -1,17 +1,19 @@
 /* Thin typed wrapper over the real backend APIs. No fake data. */
+const API_BASE = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || "";
 const api = {
   async _j(res) {
     if (!res.ok) throw new Error(`request failed (${res.status})`);
     return res.json();
   },
-  get(p) { return fetch(p).then(api._j); },
+  get(p) { return fetch(API_BASE + p).then(api._j); },
   post(p, body, opts = {}) {
-    return fetch(p, { method: "POST", headers: { "Content-Type": "application/json" },
+    return fetch(API_BASE + p, { method: "POST", headers: { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body), ...opts }).then(api._j);
   },
   health: () => api.get("/api/health"),
   sessionHealth: () => api.get("/api/session/health"),
   profile: () => api.get("/api/session/profile"),
+  dashboard: () => api.get("/api/session/dashboard"),
   sessions: () => api.get("/api/session/list"),
   sessionDetail: (sid) => api.get(`/api/session/detail?sid=${encodeURIComponent(sid)}`),
   createSession: (kind, meta) => api.post("/api/session/create", { kind, ...meta }),
@@ -20,13 +22,25 @@ const api = {
   docs: () => api.get("/api/documents/list"),
   uploadDoc: (file, kind) => {
     const fd = new FormData(); fd.append("file", file); fd.append("kind", kind);
-    return fetch("/api/documents/upload", { method: "POST", body: fd }).then(api._j);
+    return fetch(API_BASE + "/api/documents/upload", { method: "POST", body: fd }).then(api._j);
   },
   clearDocs: () => api.post("/api/documents/clear", {}),
   planInterview: (b) => api.post("/api/interview/plan", b),
   answerInterview: (sid, answer) => api.post("/api/interview/answer", { session_id: sid, answer }),
   retryInterview: (sid, answer) => api.post("/api/interview/retry", { session_id: sid, answer }),
   finishInterview: (sid) => api.post("/api/interview/finish", { session_id: sid, answer: "" }),
+  sttTranscribe: (blob, language = "en") => {
+    const fd = new FormData();
+    fd.append("file", blob, "recording.webm");
+    fd.append("language", language);
+    return fetch(API_BASE + "/api/stt/transcribe", { method: "POST", body: fd }).then(api._j);
+  },
+  sttHealth: () => api.get("/api/stt/health"),
+  ttsSpeak: (text, voiceId) => fetch(API_BASE + "/api/tts/speak", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, voice_id: voiceId || "" }),
+  }),
+  ttsHealth: () => api.get("/api/tts/health"),
 };
 const prefs = {
   get(k, d) { try { const v = localStorage.getItem("br:" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },

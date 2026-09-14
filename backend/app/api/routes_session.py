@@ -42,6 +42,11 @@ def detail(sid: str):
         return {"error": "session not found", "code": "no_session"}
     return s
 
+@router.get("/dashboard")
+def dashboard():
+    from backend.app.engines import dashboard as dash
+    return dash.build_dashboard()
+
 @router.get("/health")
 def health():
     st = service.provider_status()

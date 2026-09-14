@@ -43,5 +43,7 @@ async function detailView() {
 }
 (async () => {
   try { ALL = ((await api.sessions()).sessions || []).slice().reverse(); } catch { page.innerHTML = `<div class="card">Server unreachable.</div>`; return; }
-  if (sid) detailView(); else listView();
+  if (sid) { detailView(); return; }
+  const f0 = new URLSearchParams(location.search).get("f") || "all";
+  listView(BUCKETS.some(([k]) => k === f0) ? f0 : "all");
 })();

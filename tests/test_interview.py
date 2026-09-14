@@ -71,3 +71,58 @@ def test_answer_retry_loop():
     assert len(answered) == 1 and answered[0]["answer"].startswith("We had a deploy outage")
     f = c.post("/api/interview/finish", json={"session_id": sid, "answer": ""}).json()
     assert f["report"]["answers_evaluated"] == 1
+
+def test_evaluate_extra_dimensions_present():
+    ev = eng.evaluate_answer("Explain retries?", "We used retries um like to fix stuff.", "technical")
+    for k in ("vocabulary", "fillers", "pacing", "completeness", "technical"):
+        assert k in ev, k
+    assert ev["articulation"] == "unavailable" and ev["pronunciation"] == "unavailable"
+
+def test_final_report_aggregates():
+    hist = [
+        {"question": "Q1", "answer": "A1 with um filler words here",
+         "evaluation": {"score": 7, "main_issue": "fillers",
+                        "relevance": {"verdict": "directly", "note": "x"},
+                        "signals": {"filler_total": 2, "long_sentences": 1, "word_count": 40}}},
+        {"question": "Q2", "answer": "A2 also um fillers",
+         "evaluation": {"score": 5, "main_issue": "fillers",
+                        "relevance": {"verdict": "partially", "note": "y"},
+                        "signals": {"filler_total": 3, "long_sentences": 0, "word_count": 30}}},
+    ]
+    r = eng.final_report(hist, "Engineer", "")
+    assert r["recurring_problems"] == ["fillers"]
+    assert "1/2" in r["relevance_summary"] and "directly" in r["relevance_summary"]
+    assert "5 fillers" in r["sentence_patterns"]
+    assert "Not enough data" in r["pronunciation_note"]
+    for k in ("top_priority", "next_practice"):
+        assert k in r, k
+
+def test_dashboard_endpoint_shape():
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+    c = TestClient(app)
+    d = c.get("/api/session/dashboard").json()
+    for k in ("summary_lines", "sections", "strengths", "recurring", "focus", "recent"):
+        assert k in d, k
+    assert 1 <= len(d["summary_lines"]) <= 5
+    assert all(isinstance(l, str) and l for l in d["summary_lines"])
+
+def test_dashboard_no_fake_data_invariants():
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+    c = TestClient(app)
+    d = c.get("/api/session/dashboard").json()
+    # no zero-count sections ever displayed
+    assert all(v > 0 for v in (d["sections"] or {}).values())
+    # recent charts trace to real finished sessions only
+    listed = {s["id"] for s in c.get("/api/session/list").json()["sessions"] if s["status"] == "finished"}
+    for rc in d.get("recent_charts", []):
+        assert rc["id"] in listed
+        assert rc["section"]  # every chart belongs to a real section
+    # every metric carries its basis; nothing precanned
+    for name, m in (d.get("metrics") or {}).items():
+        assert "value" in m and "basis" in m, name
+        assert "answer" in m["basis"]
+    # trend points link to real sessions
+    for p in d.get("trend", []):
+        assert p["sid"] in listed and p["overall"] is not None

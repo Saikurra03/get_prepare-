@@ -20,6 +20,9 @@ const NAV = [
     { path: "/history", label: "History", ic: "🕘", sub: 1 },
     { path: "/profile", label: "Profile", ic: "⛉", sub: 1 },
   ]},
+  { sec: "Learn", items: [
+    { path: "/slang", label: "Slang Lab", ic: "💬" },
+  ]},
   { sec: null, items: [{ path: "/settings", label: "Settings", ic: "⚙" }] },
 ];
 const MOBILE_NAV = [

@@ -9,15 +9,24 @@ from backend.app.session import manager as store
 
 router = APIRouter(prefix="/api/interview", tags=["interview"])
 
+# Shared executor — one pool for the whole app, not per-request.
+_executor = ThreadPoolExecutor(max_workers=4)
+
+# In-flight request guard: prevents duplicate concurrent requests per session.
+_in_flight: dict[str, bool] = {}
+
+
 class PlanIn(BaseModel):
     doc_ids: list[str] = []
     interview_type: str = "mixed"
     difficulty: str = "intermediate"
     role: str = ""
 
+
 class AnswerIn(BaseModel):
     session_id: str
     answer: str
+
 
 @router.post("/plan")
 def plan(inp: PlanIn):
@@ -36,11 +45,15 @@ def plan(inp: PlanIn):
     store.append_turn(session["id"], {"question": first_q, "answer": None})
     return {"session_id": session["id"], **p, "current_question": first_q}
 
+
 @router.post("/answer")
 def answer(inp: AnswerIn):
     s = store.get_session(inp.session_id)
     if not s:
         return {"error": "interview session not found", "code": "no_session"}
+    # Dedup: reject if a request for this session is already in flight.
+    if _in_flight.get(inp.session_id):
+        return {"error": "answer already being processed", "code": "in_flight"}
     if not inp.answer or not inp.answer.strip():
         return {"error": "empty speech — answer not heard. Check microphone.", "code": "empty_speech"}
     turns = s.get("turns", [])
@@ -51,24 +64,39 @@ def answer(inp: AnswerIn):
             break
     if target is None:
         return {"error": "no pending question", "code": "no_question"}
-    itype = s["meta"].get("type", "mixed")
-    profile_note = f"focus: {store.get_profile().get('training_focus', '')}"
-    # Evaluate + draft follow-up CONCURRENTLY (halves submit latency vs serial AI calls).
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        ev_fut = pool.submit(eng.evaluate_answer, target["question"], inp.answer, itype)
-        nxt_fut = pool.submit(eng.next_question,
-                              turns + [{"question": target["question"], "answer": inp.answer[:3000]}],
-                              s["meta"].get("context", ""), itype,
-                              s["meta"].get("difficulty", "intermediate"), profile_note)
+
+    # Question count guard: count already-answered questions.
+    answered_count = sum(1 for t in turns if t.get("answer"))
+    # Allow answering the current pending question even if at limit (it was already presented).
+    # But don't generate a follow-up if we're at the limit.
+    at_limit = answered_count >= 5  # will be checked after answer is saved
+
+    _in_flight[inp.session_id] = True
+    try:
+        itype = s["meta"].get("type", "mixed")
+        profile_note = f"focus: {store.get_profile().get('training_focus', '')}"
+        # Evaluate + draft follow-up CONCURRENTLY (halves submit latency vs serial AI calls).
+        ev_fut = _executor.submit(eng.evaluate_answer, target["question"], inp.answer, itype)
+        nxt_fut = _executor.submit(eng.next_question,
+                                  turns + [{"question": target["question"], "answer": inp.answer[:3000]}],
+                                  s["meta"].get("context", ""), itype,
+                                  s["meta"].get("difficulty", "intermediate"), profile_note)
         ev = ev_fut.result()
         nxt = nxt_fut.result()
-    target["answer"] = inp.answer[:3000]
-    target["evaluation"] = ev
-    _persist_turns(inp.session_id, turns)
-    store.append_turn(inp.session_id, {"question": nxt["question"], "answer": None, "bridge": nxt["bridge"]})
-    return {"evaluation": ev, "bridge": nxt["bridge"], "next_question": nxt["question"],
-            "retry_suggested": ev.get("retry_suggested", False),
-            "retry_instruction": ev.get("retry_instruction", "")}
+        target["answer"] = inp.answer[:3000]
+        target["evaluation"] = ev
+        _persist_turns(inp.session_id, turns)
+        # Only append follow-up if NOT at question limit.
+        new_answered = answered_count + 1
+        if new_answered < 5:
+            store.append_turn(inp.session_id, {"question": nxt["question"], "answer": None, "bridge": nxt["bridge"]})
+        return {"evaluation": ev, "bridge": nxt["bridge"], "next_question": nxt["question"],
+                "retry_suggested": ev.get("retry_suggested", False),
+                "retry_instruction": ev.get("retry_instruction", ""),
+                "answered": new_answered, "at_limit": new_answered >= 5}
+    finally:
+        _in_flight.pop(inp.session_id, None)
+
 
 @router.post("/retry")
 def retry(inp: AnswerIn):
@@ -77,6 +105,8 @@ def retry(inp: AnswerIn):
     s = store.get_session(inp.session_id)
     if not s:
         return {"error": "interview session not found", "code": "no_session"}
+    if _in_flight.get(inp.session_id):
+        return {"error": "answer already being processed", "code": "in_flight"}
     if not inp.answer or not inp.answer.strip():
         return {"error": "empty speech — retry not heard. Check microphone.", "code": "empty_speech"}
     turns = s.get("turns", [])
@@ -86,24 +116,30 @@ def retry(inp: AnswerIn):
     old = {"answer": turns[idx]["answer"], "score": (turns[idx].get("evaluation") or {}).get("score")}
     # drop any unanswered turns after it (stale follow-up), then re-evaluate in place
     turns = turns[:idx + 1]
-    itype = s["meta"].get("type", "mixed")
-    profile_note = f"focus: {store.get_profile().get('training_focus', '')}"
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        ev_fut = pool.submit(eng.evaluate_answer, turns[idx]["question"], inp.answer, itype)
-        nxt_fut = pool.submit(eng.next_question,
-                              turns[:-1] + [{"question": turns[idx]["question"], "answer": inp.answer[:3000]}],
-                              s["meta"].get("context", ""), itype,
-                              s["meta"].get("difficulty", "intermediate"), profile_note)
+
+    _in_flight[inp.session_id] = True
+    try:
+        itype = s["meta"].get("type", "mixed")
+        profile_note = f"focus: {store.get_profile().get('training_focus', '')}"
+        ev_fut = _executor.submit(eng.evaluate_answer, turns[idx]["question"], inp.answer, itype)
+        nxt_fut = _executor.submit(eng.next_question,
+                                  turns[:-1] + [{"question": turns[idx]["question"], "answer": inp.answer[:3000]}],
+                                  s["meta"].get("context", ""), itype,
+                                  s["meta"].get("difficulty", "intermediate"), profile_note)
         ev = ev_fut.result()
         nxt = nxt_fut.result()
-    turns[idx]["answer"] = inp.answer[:3000]
-    turns[idx]["evaluation"] = ev
-    _persist_turns(inp.session_id, turns)
-    store.append_turn(inp.session_id, {"question": nxt["question"], "answer": None, "bridge": nxt["bridge"]})
-    return {"evaluation": ev, "bridge": nxt["bridge"], "next_question": nxt["question"],
-            "old": old, "new": {"score": ev.get("score")},
-            "retry_suggested": ev.get("retry_suggested", False),
-            "retry_instruction": ev.get("retry_instruction", "")}
+        turns[idx]["answer"] = inp.answer[:3000]
+        turns[idx]["evaluation"] = ev
+        _persist_turns(inp.session_id, turns)
+        # Retry replaces answer in-place — always append follow-up (retry doesn't change question count).
+        store.append_turn(inp.session_id, {"question": nxt["question"], "answer": None, "bridge": nxt["bridge"]})
+        return {"evaluation": ev, "bridge": nxt["bridge"], "next_question": nxt["question"],
+                "old": old, "new": {"score": ev.get("score")},
+                "retry_suggested": ev.get("retry_suggested", False),
+                "retry_instruction": ev.get("retry_instruction", "")}
+    finally:
+        _in_flight.pop(inp.session_id, None)
+
 
 def _persist_turns(session_id: str, turns: list[dict]) -> None:
     from backend.app.session.manager import _load, _save
@@ -113,6 +149,7 @@ def _persist_turns(session_id: str, turns: list[dict]) -> None:
             ss["turns"] = turns
             break
     _save("sessions.json", sessions)
+
 
 @router.post("/finish")
 def finish(inp: AnswerIn):

@@ -25,6 +25,13 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
     ${sec("Communication", esc(r.communication || ""))}
     ${sec("Technical performance", esc(r.technical || ""))}
     ${sec("Role alignment", esc(r.role_alignment || ""))}
+    ${sec("Recurring problems", esc((r.recurring_problems || []).join(" · ") || "—"))}
+    ${sec("Answer relevance", esc(r.relevance_summary || ""))}
+    ${sec("Sentence & grammar patterns", esc(r.sentence_patterns || ""))}
+    ${sec("Pronunciation / articulation", esc(r.pronunciation_note || ""))}
+    <div class="card mt"><h3>Most important improvement</h3><div class="small"><b>${esc(r.top_priority || r.biggest_weakness || "—")}</b></div></div>
+    <div class="card mt"><h3>Next training target</h3><div class="small">${(r.training || []).map((t) => `• ${esc(t)}`).join("<br/>") || "—"}
+    <br/>Recommended next session: <b>${esc(r.next_practice || "—")}</b></div>
     <div class="card mt"><h3>Next training target</h3><div class="small">${(r.training || []).map((t) => `• ${esc(t)}`).join("<br/>") || "—"}</div>
       <div class="row mt"><a class="btn primary" href="/practice">Train now</a>
       <a class="btn ghost" href="/history">All sessions</a></div></div>`;

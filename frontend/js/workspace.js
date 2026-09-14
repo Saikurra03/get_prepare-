@@ -5,6 +5,7 @@ const M = MODES[modeKey];
 const page = buildShell(M.title, `BERREADY / Practice / ${M.title}`);
 const media = createMedia();
 let sessionId = null, timer = null, t0 = 0, cfg = {}, firstText = "", lastResult = null;
+let recording = false;
 
 const steps = ["Setup", "Live", "Feedback", "Retry", "Results"];
 const EVAL_ON = {
@@ -71,23 +72,83 @@ async function startLive() {
       <span class="timer" id="tm">00:00</span></div></div>
       <div>${promptLine}${topicLine}
       <div class="card"><div class="transcript" id="tx" contenteditable="true">Your words appear here — or type if the mic is unavailable…</div>
-      <div class="row mt"><button class="primary" id="bTalk">🎤 Speak</button>
-      <button id="bDone">Done — feedback</button><button class="ghost" id="bCancel">Cancel</button></div></div></div></div>`;
+      <div class="row mt">
+        <button class="primary" id="bRecord">🎙️ Start Recording</button>
+        <button class="primary" id="bStopRecord" style="display:none">■ Stop & Transcribe</button>
+        <button class="primary" id="bTalk">🎤 Browser STT</button>
+        <button id="bDone">Done — feedback</button><button class="ghost" id="bCancel">Cancel</button>
+      </div>
+      <div id="sttStatus" class="small mut mt"></div></div></div></div>`;
   if (media.camOn) { try { document.getElementById("v").srcObject = media.stream; } catch {} document.getElementById("dCam").classList.add("on"); }
   t0 = Date.now(); timer = setInterval(() => { document.getElementById("tm").textContent = fmtDur(Date.now() - t0); }, 500);
+
   if (modeKey === "qa") {
-    document.getElementById("bTalk").disabled = true;
+    document.getElementById("bRecord").disabled = true;
     let n = 10; const cd = setInterval(() => {
       n--; const el = document.getElementById("cd"); if (el) el.textContent = n;
-      if (n <= 0) { clearInterval(cd); document.getElementById("bTalk").disabled = false; }
+      if (n <= 0) { clearInterval(cd); document.getElementById("bRecord").disabled = false; }
     }, 1000);
   }
+
+  /* --- Recording + Server STT flow --- */
+  document.getElementById("bRecord").onclick = async () => {
+    const ok = await media.startRecording();
+    if (!ok) { document.getElementById("sttStatus").innerHTML = `<span style="color:var(--warn)">Failed to start recording — check mic permission.</span>`; return; }
+    recording = true;
+    document.getElementById("bRecord").style.display = "none";
+    document.getElementById("bStopRecord").style.display = "";
+    document.getElementById("bTalk").disabled = true;
+    document.getElementById("bDone").disabled = true;
+    document.getElementById("sttStatus").innerHTML = `<span class="small mut">🔴 Recording… speak now</span>`;
+    document.getElementById("recT").textContent = "recording";
+    document.getElementById("dRec").style.display = "";
+    document.getElementById("dRec").classList.add("rec");
+  };
+
+  document.getElementById("bStopRecord").onclick = async () => {
+    if (!recording) return;
+    recording = false;
+    document.getElementById("bStopRecord").style.display = "none";
+    document.getElementById("bRecord").style.display = "";
+    document.getElementById("bTalk").disabled = false;
+    document.getElementById("bDone").disabled = false;
+    document.getElementById("sttStatus").innerHTML = `<span class="small mut">⏳ Transcribing with server Whisper…</span>`;
+    document.getElementById("recT").textContent = "transcribing";
+
+    const blob = await media.stopRecording();
+    let transcript = "";
+    if (blob) {
+      try {
+        const result = await api.sttTranscribe(blob, "en");
+        transcript = result.text || "";
+        if (result.confidence !== undefined) {
+          document.getElementById("sttStatus").innerHTML = `<span class="small mut">✅ Transcribed (confidence: ${(result.confidence * 100).toFixed(0)}%)</span>`;
+        } else {
+          document.getElementById("sttStatus").innerHTML = `<span class="small mut">✅ Transcribed with server Whisper</span>`;
+        }
+      } catch (err) {
+        console.warn("Server STT failed, trying browser fallback:", err);
+        const browserText = media.getBrowserTranscript();
+        transcript = browserText || "";
+        document.getElementById("sttStatus").innerHTML = browserText
+          ? `<span class="small mut">⚠️ Server STT unavailable — using browser transcript</span>`
+          : `<span class="small mut">⚠️ Transcription failed — try typing your answer</span>`;
+      }
+    }
+
+    document.getElementById("tx").textContent = transcript || "…";
+    document.getElementById("dRec").style.display = "none";
+    document.getElementById("dRec").classList.remove("rec");
+    document.getElementById("recT").textContent = "ready";
+  };
+
   document.getElementById("bTalk").onclick = (e) => media.listen(
-    (t) => { document.getElementById("tx").textContent = t; },
+    (t) => { document.getElementById("tx").textContent = t; document.getElementById("sttStatus").innerHTML = `<span class="small mut">🎤 Browser STT active</span>`; },
     (on) => { document.getElementById("dRec").style.display = on ? "" : "none";
       document.getElementById("recT").textContent = on ? "listening…" : "ready";
-      document.body.classList.toggle("speaking", on); e.target.textContent = on ? "■ Stop" : "🎤 Speak"; },
-    () => alert("Microphone unavailable — type your answer instead."));
+      document.body.classList.toggle("speaking", on); e.target.textContent = on ? "■ Stop" : "🎤 Browser STT"; },
+    () => { document.getElementById("sttStatus").innerHTML = `<span style="color:var(--warn)">Microphone unavailable — type your answer.</span>`; });
+
   document.getElementById("bCancel").onclick = () => { clearInterval(timer); media.stopListen(); showSetup(); };
   document.getElementById("bDone").onclick = getFeedback;
 }
@@ -121,11 +182,54 @@ function showRetry() {
   page.innerHTML = `${stepBar(3)}<div class="card"><div class="small dim">Original</div><p>${esc(firstText.slice(0, 500))}</p></div>
     <div class="card mt"><h3>Retry — apply the coaching above</h3>
     <div class="transcript" id="tx2" contenteditable="true">Speak or type your improved version…</div>
-    <div class="row mt"><button id="bTalk2">🎤 Speak retry</button><button class="primary" id="bCmp">Compare</button></div>
+    <div class="row mt">
+      <button class="primary" id="bRecord2">🎙️ Record retry</button>
+      <button class="primary" id="bStopRecord2" style="display:none">■ Stop & Transcribe</button>
+      <button id="bTalk2">🎤 Browser STT</button>
+      <button class="primary" id="bCmp">Compare</button>
+    </div>
     <div id="cmpOut" class="mt"></div>
+    <div id="sttStatus2" class="small mut mt"></div>
     <div class="row mt"><button class="ghost" id="bFinish2">Finish</button></div></div>`;
+
+  let recording2 = false;
+  document.getElementById("bRecord2").onclick = async () => {
+    const ok = await media.startRecording();
+    if (!ok) { document.getElementById("sttStatus2").innerHTML = `<span style="color:var(--warn)">Failed to start recording.</span>`; return; }
+    recording2 = true;
+    document.getElementById("bRecord2").style.display = "none";
+    document.getElementById("bStopRecord2").style.display = "";
+    document.getElementById("bTalk2").disabled = true;
+    document.getElementById("bCmp").disabled = true;
+    document.getElementById("sttStatus2").innerHTML = `<span class="small mut">🔴 Recording…</span>`;
+  };
+
+  document.getElementById("bStopRecord2").onclick = async () => {
+    if (!recording2) return;
+    recording2 = false;
+    document.getElementById("bStopRecord2").style.display = "none";
+    document.getElementById("bRecord2").style.display = "";
+    document.getElementById("bTalk2").disabled = false;
+    document.getElementById("bCmp").disabled = false;
+    document.getElementById("sttStatus2").innerHTML = `<span class="small mut">⏳ Transcribing…</span>`;
+
+    const blob = await media.stopRecording();
+    let transcript = "";
+    if (blob) {
+      try {
+        const result = await api.sttTranscribe(blob, "en");
+        transcript = result.text || "";
+        document.getElementById("sttStatus2").innerHTML = `<span class="small mut">✅ Transcribed</span>`;
+      } catch {
+        transcript = media.getBrowserTranscript() || "";
+        document.getElementById("sttStatus2").innerHTML = `<span class="small mut">⚠️ Server STT failed — using browser fallback</span>`;
+      }
+    }
+    document.getElementById("tx2").textContent = transcript || "…";
+  };
+
   document.getElementById("bTalk2").onclick = (e) => media.listen(
-    (t) => { document.getElementById("tx2").textContent = t; }, (on) => { e.target.textContent = on ? "■ Stop" : "🎤 Speak retry"; }, () => alert("Mic unavailable — type instead."));
+    (t) => { document.getElementById("tx2").textContent = t; }, (on) => { e.target.textContent = on ? "■ Stop" : "🎤 Browser STT"; }, () => alert("Mic unavailable — type instead."));
   document.getElementById("bCmp").onclick = async () => {
     const second = document.getElementById("tx2").textContent.trim();
     if (!second) { alert("Speak or type your retry first."); return; }

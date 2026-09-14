@@ -1,5 +1,6 @@
 """OpenRouter provider (OpenAI-compatible chat completions over httpx, no extra SDK)."""
 from __future__ import annotations
+import os
 import re
 import httpx
 from .base import AIProvider, AIResponse, ProviderFailure
@@ -56,7 +57,7 @@ class OpenRouterProvider(AIProvider):
                         URL,
                         headers={"Authorization": f"Bearer {api_key}",
                                  "Content-Type": "application/json",
-                                 "HTTP-Referer": "https://localhost:8000",
+                                 "HTTP-Referer": os.getenv("BACKEND_URL", "https://berready.app"),
                                  "X-Title": "BeReady Boy Coach"},
                         json={"model": model, "messages": msgs,
                               "temperature": 0.7, "max_tokens": max_tokens},
