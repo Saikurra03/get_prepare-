@@ -49,9 +49,16 @@ def _offline_coach(prompt: str) -> str:
             'Example: "We faced X. I fixed it by doing Y."')
 
 def generate(prompt: str, system: str = COACH_SYSTEM, max_tokens: int = 1200) -> AIResponse:
+    import time as _time
+    from backend.app.main import _activity
+    _activity["ai_calls"] += 1
     try:
-        return _manager.generate(prompt, system=system, max_tokens=max_tokens)
+        resp = _manager.generate(prompt, system=system, max_tokens=max_tokens)
+        _activity["ai_success"] += 1
+        _activity["last_ai_time"] = _time.time()
+        return resp
     except Exception as exc:
+        _activity["ai_failures"] += 1
         if OFFLINE_SENTINEL in str(exc):
             log.info("offline mode: no AI keys, using heuristic")
             tag = "offline"

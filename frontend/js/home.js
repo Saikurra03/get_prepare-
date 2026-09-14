@@ -43,7 +43,16 @@ page.innerHTML = `
       `<b>${esc(focus)}</b><br/><span class="dim">Weaknesses: ${esc((prof.weaknesses || []).join(", ") || "—")}</span>`;
     document.getElementById("snapBox").innerHTML =
       `Sessions: <b>${prof.sessions_completed ?? 0}</b><br/>Avg interview score: <b>${prof.avg_score ?? "—"}</b>`;
-    document.getElementById("engBox").innerHTML = esc(health.ai_provider || "offline");
+    document.getElementById("engBox").innerHTML = (() => {
+      if (!health.ok) return `<span style="color:var(--bad)">Backend unreachable</span>`;
+      if (health.ai_ready) {
+        const p = health.active_provider ? health.active_provider.charAt(0).toUpperCase() + health.active_provider.slice(1) : "";
+        return `<span style="color:var(--good)">● AI Ready</span><br/>Active: <b>${esc(p)}</b> ${health.active_key ? `(${esc(health.active_key)})` : ""}<br/>Failover: <b>enabled</b>`;
+      }
+      const available = Object.entries(health.providers || {}).filter(([,v]) => v === "available").map(([k]) => k);
+      if (available.length) return `<span style="color:var(--warn)">● Backend connected</span><br/>${esc(available.join(", ").replace(/\b\w/g, c => c.toUpperCase()))} configured — will activate on first AI call`;
+      return `<span style="color:var(--bad)">● No AI keys configured</span>`;
+    })();
     // recent
     document.getElementById("recentBox").innerHTML = list.length ? `<table class="t"><tr><th>Date</th><th>Type</th><th>Status</th><th></th></tr>` +
       list.slice(0, 5).map(s => `<tr><td>${esc(fmtT(s.created || s.meta?.created))}</td><td>${esc(s.meta?.scenario || s.kind)}</td><td>${esc(s.status)}</td><td><a href="/history?sid=${s.id}">Open</a></td></tr>`).join("") + `</table>`

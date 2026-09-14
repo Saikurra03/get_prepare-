@@ -41,6 +41,7 @@ const api = {
     body: JSON.stringify({ text, voice_id: voiceId || "" }),
   }),
   ttsHealth: () => api.get("/api/tts/health"),
+  status: () => api.get("/api/status"),
 };
 const prefs = {
   get(k, d) { try { const v = localStorage.getItem("br:" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },

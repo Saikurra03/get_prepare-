@@ -79,10 +79,22 @@ function buildShell(title, crumb) {
 }
 async function refreshAI() {
   try {
-    const h = await api.health();
+    const st = await api.status();
     const el = document.getElementById("aiLabel"), d = document.getElementById("aiDot");
     if (!el) return;
-    el.textContent = h.ai_provider || "offline";
-    d.className = "dot" + (h.ai_ready ? " on" : "");
+    if (st.backend !== "connected") {
+      el.textContent = "Backend offline";
+      d.className = "dot";
+    } else if (st.ai_ready) {
+      const prov = st.active_provider ? st.active_provider.charAt(0).toUpperCase() + st.active_provider.slice(1) : "?";
+      el.textContent = prov + " active";
+      d.className = "dot on";
+    } else if (st.configured_count > 0) {
+      el.textContent = st.configured_count + " provider" + (st.configured_count > 1 ? "s" : "") + " ready";
+      d.className = "dot";
+    } else {
+      el.textContent = "No AI keys";
+      d.className = "dot";
+    }
   } catch { /* stay quiet */ }
 }

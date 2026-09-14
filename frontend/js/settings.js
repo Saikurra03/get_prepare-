@@ -16,10 +16,17 @@ page.innerHTML = `
     <div class="row mt"><button class="primary" id="bSave">Save</button><span class="small dim" id="saved"></span></div></div>`;
 (async () => {
   try {
-    const h = await api.health();
+    const st = await api.status();
+    const provList = (st.provider_order || []).map(p => {
+      const avail = (st.providers || {})[p] === "available";
+      return `${esc(p.charAt(0).toUpperCase() + p.slice(1))}: ${avail ? '<span style="color:var(--good)">available</span>' : '<span class="dim">no keys</span>'}`;
+    }).join(" · ");
+    const activeLine = st.ai_ready
+      ? `<span style="color:var(--good)">● Active: ${esc((st.active_provider || "").charAt(0).toUpperCase() + (st.active_provider || "").slice(1))}</span> ${st.active_key ? `(${esc(st.active_key)})` : ""}`
+      : `<span style="color:var(--warn)">● No active provider yet — will activate on first AI call</span>`;
     document.getElementById("eng").innerHTML =
-      `Status: <b>${esc(h.ai_provider || "offline")}</b><br/>Provider available: <b>${h.ai_ready ? "yes" : "no"}</b><br/>
-       Automatic failover: <b>enabled</b><br/>Provider priority: <b>${esc((h.order || []).join(" → "))}</b>`;
+      `${activeLine}<br/>Failover: <b>enabled</b> · Configured: <b>${st.configured_count || 0}</b> provider(s)<br/>Priority: <b>${esc((st.provider_order || []).join(" → "))}</b><br/>${provList}<br/>
+       <div class="small dim mt">Requests: ${st.activity?.api_requests ?? 0} API · ${st.activity?.ai_calls ?? 0} AI calls · ${st.activity?.ai_success ?? 0} success · ${st.activity?.errors ?? 0} errors</div>`;
   } catch { document.getElementById("eng").textContent = "Server unreachable."; }
 })();
 document.getElementById("p_diff").value = prefs.get("diff", "intermediate");
