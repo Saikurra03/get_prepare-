@@ -11,7 +11,7 @@ page.innerHTML = `
     <label class="fl">Role</label><input type="text" id="s_role" placeholder="e.g. Software Engineer" style="width:100%" value="${esc(prefs.get("role", ""))}"/>
     <label class="fl">Difficulty</label><select id="s_diff">
       ${["beginner", "intermediate", "advanced", "expert"].map((d) => `<option ${d === prefs.get("diff", "intermediate") ? "selected" : ""}>${d}</option>`).join("")}</select>
-    <label class="fl">Number of questions</label><select id="s_n"><option>3</option><option selected>5</option><option>7</option></select>
+    <label class="fl">Number of questions</label><select id="s_n"><option>3</option><option selected>5</option><option>7</option><option>10</option></select>
   </div>
   <div class="card"><h3>Documents & devices</h3>
     <div id="docBox" class="small mut">Loading documents…</div>
@@ -56,7 +56,8 @@ document.getElementById("bGo").onclick = async () => {
   try {
     const r = await api.planInterview({ doc_ids: docIds, interview_type: type,
       difficulty: document.getElementById("s_diff").value,
-      role: type === "custom" && custom ? `Custom focus: ${custom}. Role: ${role}` : role });
+      role: type === "custom" && custom ? `Custom focus: ${custom}. Role: ${role}` : role,
+      num_questions: parseInt(document.getElementById("s_n").value, 10) });
     location.href = `/interview-live?sid=${r.session_id}`;
   } catch { document.getElementById("err").textContent = "Could not start — is the server running?"; btn.disabled = false; btn.textContent = "Start interview"; }
 };

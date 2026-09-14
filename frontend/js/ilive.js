@@ -3,9 +3,9 @@ const sid = new URLSearchParams(location.search).get("sid");
 if (!sid) location.href = "/interview";
 const page = buildShell("Interview", "BERREADY / Interview / Live");
 const media = createMedia();
-const NQ = parseInt(prefs.get("nQ", "5"), 10) || 5;
 let answered = 0, t0 = Date.now(), tick = null, submitting = false, retryMode = false;
 let currentRequestId = 0;
+let NQ = 5; // will be overwritten from session meta
 
 page.innerHTML = `
   <div class="card mb"><div class="row"><div><div class="small dim" id="ivMeta">Preparing…</div>
@@ -209,6 +209,7 @@ document.getElementById("bEnd").onclick = endInterview;
     const pending = (d.turns || []).find((t) => t.question && !t.answer);
     const first = (d.turns || []).find((t) => t.question);
     answered = (d.turns || []).filter((t) => t.answer).length;
+    NQ = d.meta?.num_questions || 5;
     document.getElementById("q").textContent = (pending || first)?.question || "Tell me about yourself.";
     document.getElementById("ivMeta").textContent =
       `${d.meta?.role || "Candidate"} · ${d.meta?.type || ""} · ${d.meta?.difficulty || ""}`;

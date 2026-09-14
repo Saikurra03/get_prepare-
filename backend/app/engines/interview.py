@@ -18,24 +18,24 @@ BASE_QUESTIONS = {
     "custom": ["Tell me about yourself.", "What should we focus on first?", "Give me a specific example from your experience."],
 }
 
-def build_plan(interview_type: str, difficulty: str, context: str, signals: dict | None = None) -> dict:
+def build_plan(interview_type: str, difficulty: str, context: str, signals: dict | None = None, num_questions: int = 5) -> dict:
     interview_type = interview_type if interview_type in TYPES else "mixed"
     seeds = list(BASE_QUESTIONS[interview_type])
     prompt = (
         f"You are a realistic {interview_type} interviewer ({difficulty} level).\n"
         f"Candidate context:\n{context[:4000]}\nSignals: {signals or {}}\n"
         f"Seed questions: {seeds}\n"
-        "Create an interview plan: 5 questions tailored to this candidate, increasing depth. "
+        f"Create an interview plan: {num_questions} questions tailored to this candidate, increasing depth. "
         "Reply JSON: {\"role\": str, \"focus\": [str], \"questions\": [str]}"
     )
     try:
         data, resp = service.generate_json(prompt)
         qs = data.get("questions") or seeds
         return {"role": data.get("role", "Candidate"), "focus": data.get("focus", seeds[:2]),
-                "questions": qs[:6], "provider": resp.provider, "fallback_active": resp.fallback_active}
+                "questions": qs[:num_questions + 1], "provider": resp.provider, "fallback_active": resp.fallback_active}
     except Exception:
         random.shuffle(seeds)
-        return {"role": "Candidate", "focus": seeds[:2], "questions": seeds[:5],
+        return {"role": "Candidate", "focus": seeds[:2], "questions": seeds[:num_questions],
                 "provider": "offline", "fallback_active": False}
 
 def next_question(history: list[dict], context: str, interview_type: str, difficulty: str,

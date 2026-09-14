@@ -47,5 +47,5 @@ const prefs = {
   set(k, v) { try { localStorage.setItem("br:" + k, JSON.stringify(v)); } catch {} },
 };
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const fmtT = (ts) => { try { return new Date(ts * 1000).toLocaleString(); } catch { return ""; } };
+const fmtT = (ts) => { if (!ts) return "—"; const d = new Date(ts * 1000); return isNaN(d.getTime()) ? "—" : d.toLocaleString(); };
 const fmtDur = (ms) => { const s = Math.floor(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };

@@ -45,7 +45,9 @@ function showSetup() {
     const s = document.getElementById("f_prompt"); s.selectedIndex = Math.floor(Math.random() * s.options.length);
   });
   document.getElementById("bCam").onclick = async (e) => {
-    const on = await media.camera(document.getElementById("v"), !media.camOn, () => alert("Camera unavailable — continuing audio-only."));
+    const videoEl = document.getElementById("v");
+    if (!videoEl) { prefs.set("cam", !prefs.get("cam", false)); e.target.textContent = `Camera: ${prefs.get("cam") ? "on" : "off"}`; return; }
+    const on = await media.camera(videoEl, !media.camOn, () => alert("Camera unavailable — continuing audio-only."));
     e.target.textContent = `Camera: ${on ? "on" : "off"}`;
   };
   document.getElementById("bMic").onclick = (e) => { e.target.textContent = `Mic: ${media.toggleMic() ? "on" : "off"}`; };

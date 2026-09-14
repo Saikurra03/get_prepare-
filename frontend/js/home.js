@@ -28,7 +28,7 @@ page.innerHTML = `
     const list = (sess.sessions || []).slice().reverse();
     // continue: most recent session
     document.getElementById("contBox").innerHTML = list.length
-      ? `Last: <b>${esc(list[0].kind)}</b> · ${esc(fmtT(list[0].meta?.created || 0))} · ${esc(list[0].status)}<br/>
+      ? `Last: <b>${esc(list[0].kind)}</b> · ${esc(fmtT(list[0].meta?.created))} · ${esc(list[0].status)}<br/>
          <a class="btn mt" href="/history?sid=${list[0].id}">Review it</a>
          <a class="btn ghost" href="/practice">Start new</a>`
       : `No sessions yet. <a class="btn mt" href="/practice">Choose a practice</a>`;
@@ -46,7 +46,7 @@ page.innerHTML = `
     document.getElementById("engBox").innerHTML = esc(health.ai_provider || "offline");
     // recent
     document.getElementById("recentBox").innerHTML = list.length ? `<table class="t"><tr><th>Date</th><th>Type</th><th>Status</th><th></th></tr>` +
-      list.slice(0, 5).map(s => `<tr><td>${esc(fmtT(s.created))}</td><td>${esc(s.meta?.scenario || s.kind)}</td><td>${esc(s.status)}</td><td><a href="/history?sid=${s.id}">Open</a></td></tr>`).join("") + `</table>`
+      list.slice(0, 5).map(s => `<tr><td>${esc(fmtT(s.created || s.meta?.created))}</td><td>${esc(s.meta?.scenario || s.kind)}</td><td>${esc(s.status)}</td><td><a href="/history?sid=${s.id}">Open</a></td></tr>`).join("") + `</table>`
       : "Nothing yet — your sessions will appear here.";
-  } catch { page.querySelectorAll("#contBox,#recBox").forEach(e => e.textContent = "Could not load. Is the server running?"); }
+  } catch { ["contBox","recBox","focusBox","snapBox","engBox","recentBox"].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = "Could not load. Is the server running?"; }); }
 })();

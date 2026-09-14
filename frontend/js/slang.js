@@ -31,7 +31,7 @@ const SLANG = [
   { word: "Dead / I'm dead", meaning: "Something is so funny you can't handle it, you're dying of laughter.", example: "Did you see that meme? I'm dead.", category: "Emotion" },
   { word: "Clout", meaning: "Influence, power, or popularity, especially on social media.", example: "He's just doing it for clout.", category: "Social" },
   { word: "W / L", meaning: "W = Win (something good). L = Loss (something bad or embarrassing).", example: "Got the job — that's a huge W. / Trippped in public — total L.", category: "Casual" },
-  { word: " mid", meaning: "Mediocre, average, nothing special — used as a criticism.", example: "The movie was mid, nothing worth watching again.", category: "Descriptive" },
+  { word: "Mid", meaning: "Mediocre, average, nothing special — used as a criticism.", example: "The movie was mid, nothing worth watching again.", category: "Descriptive" },
 ];
 
 const CATEGORIES = [...new Set(SLANG.map(s => s.category))];
@@ -98,7 +98,7 @@ async function playSlang(idx, btn) {
   const textToSpeak = `${s.word}. ${s.meaning} For example: ${s.example}`;
 
   try {
-    const resp = await fetch("/api/tts/speak", {
+    const resp = await fetch((window.APP_CONFIG?.API_BASE || "") + "/api/tts/speak", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: textToSpeak }),

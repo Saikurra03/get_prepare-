@@ -21,6 +21,7 @@ class PlanIn(BaseModel):
     interview_type: str = "mixed"
     difficulty: str = "intermediate"
     role: str = ""
+    num_questions: int = 5
 
 
 class AnswerIn(BaseModel):
@@ -37,10 +38,11 @@ def plan(inp: PlanIn):
     signals = context_builder.extract_signals(jd_text, resume_text)
     if inp.role:
         ctx = f"Target role: {inp.role}\n" + ctx
-    p = eng.build_plan(inp.interview_type, inp.difficulty, ctx or "General candidate.", signals)
+    p = eng.build_plan(inp.interview_type, inp.difficulty, ctx or "General candidate.", signals, inp.num_questions)
     session = store.create_session("interview", {"type": inp.interview_type,
                                                  "difficulty": inp.difficulty, "role": p.get("role", inp.role),
-                                                 "context": ctx[:4000], "jd": jd_text[:4000]})
+                                                 "context": ctx[:4000], "jd": jd_text[:4000],
+                                                 "num_questions": inp.num_questions})
     first_q = (p["questions"] or ["Tell me about yourself."])[0]
     store.append_turn(session["id"], {"question": first_q, "answer": None})
     return {"session_id": session["id"], **p, "current_question": first_q}
@@ -65,11 +67,12 @@ def answer(inp: AnswerIn):
     if target is None:
         return {"error": "no pending question", "code": "no_question"}
 
-    # Question count guard: count already-answered questions.
+    # Question count guard: use configurable limit from session meta.
+    max_q = s["meta"].get("num_questions", 5)
     answered_count = sum(1 for t in turns if t.get("answer"))
     # Allow answering the current pending question even if at limit (it was already presented).
     # But don't generate a follow-up if we're at the limit.
-    at_limit = answered_count >= 5  # will be checked after answer is saved
+    at_limit = answered_count >= max_q  # will be checked after answer is saved
 
     _in_flight[inp.session_id] = True
     try:
@@ -88,12 +91,12 @@ def answer(inp: AnswerIn):
         _persist_turns(inp.session_id, turns)
         # Only append follow-up if NOT at question limit.
         new_answered = answered_count + 1
-        if new_answered < 5:
+        if new_answered < max_q:
             store.append_turn(inp.session_id, {"question": nxt["question"], "answer": None, "bridge": nxt["bridge"]})
         return {"evaluation": ev, "bridge": nxt["bridge"], "next_question": nxt["question"],
                 "retry_suggested": ev.get("retry_suggested", False),
                 "retry_instruction": ev.get("retry_instruction", ""),
-                "answered": new_answered, "at_limit": new_answered >= 5}
+                "answered": new_answered, "at_limit": new_answered >= max_q}
     finally:
         _in_flight.pop(inp.session_id, None)
 

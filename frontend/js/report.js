@@ -32,7 +32,6 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
     <div class="card mt"><h3>Most important improvement</h3><div class="small"><b>${esc(r.top_priority || r.biggest_weakness || "—")}</b></div></div>
     <div class="card mt"><h3>Next training target</h3><div class="small">${(r.training || []).map((t) => `• ${esc(t)}`).join("<br/>") || "—"}
     <br/>Recommended next session: <b>${esc(r.next_practice || "—")}</b></div>
-    <div class="card mt"><h3>Next training target</h3><div class="small">${(r.training || []).map((t) => `• ${esc(t)}`).join("<br/>") || "—"}</div>
       <div class="row mt"><a class="btn primary" href="/practice">Train now</a>
       <a class="btn ghost" href="/history">All sessions</a></div></div>`;
 })();

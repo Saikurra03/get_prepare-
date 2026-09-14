@@ -12,10 +12,12 @@ app = FastAPI(title="BERREADY — Communication + Interview Coach", version="0.2
 # CORS — allow Netlify frontend (or any configured origin) to call the API.
 _cors_raw = os.getenv("CORS_ORIGINS", "*")
 _origins = [o.strip() for o in _cors_raw.split(",") if o.strip()]
+# Wildcard with credentials is invalid per CORS spec — disable credentials for wildcard.
+_has_wildcard = "*" in _origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    allow_credentials=True,
+    allow_credentials=not _has_wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -51,11 +53,16 @@ PAGES = {
 @app.get("/api/health")
 def health():
     from backend.app.ai import service
+    from backend.app.ai.key_manager import key_manager, _collect
     from backend.app.config import settings
     st = service.provider_status()
-    # Safe labels only ("AI Ready" / "Gemini — Key 2 active" in debug). Never a key value.
+    # Key count diagnostics (never values) — helps debug "offline" on deploy.
+    key_counts = {}
+    for p in settings.provider_order:
+        key_counts[p] = len(_collect(p.upper()))
     return {"ok": True, "ai_ready": st.get("ready", False), "ai_provider": st.get("display"),
             "order": settings.provider_order,
+            "key_counts": key_counts,
             "detail": {k: st[k] for k in ("provider", "key_label", "fallback_active", "debug") if k in st}}
 
 if os.path.isdir(FRONTEND):

@@ -114,7 +114,7 @@ function createMedia() {
     formData.append("language", "en");
     
     try {
-      const response = await fetch("/api/stt/transcribe", {
+      const response = await fetch((window.APP_CONFIG?.API_BASE || "") + "/api/stt/transcribe", {
         method: "POST",
         body: formData,
       });

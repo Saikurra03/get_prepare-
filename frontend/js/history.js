@@ -15,7 +15,7 @@ async function listView(f = "all") {
   const rows = ALL.filter((s) => f === "all" || bucket(s) === f);
   document.getElementById("tbl").innerHTML = rows.length ? `<div class="card"><table class="t">
     <tr><th>Date</th><th>Type</th><th>Detail</th><th>Result</th><th>Status</th><th></th></tr>` +
-    rows.map((s) => `<tr><td>${esc(fmtT(s.created))}</td><td>${esc(s.kind)}</td>
+    rows.map((s) => `<tr><td>${esc(fmtT(s.created || s.meta?.created))}</td><td>${esc(s.kind)}</td>
       <td>${esc(s.meta?.scenario || s.meta?.type || "—")}</td>
       <td>${s.kind === "interview" && s.status === "finished" ? `<a href="/report?sid=${s.id}">report</a>` : `<span class="dim">—</span>`}</td>
       <td>${esc(s.status)}</td><td><a href="/history?sid=${s.id}">Open</a></td></tr>`).join("") + `</table></div>`
@@ -34,7 +34,7 @@ async function detailView() {
     return `<div class="card mt">${q}${a}${fb}</div>`;
   }).join("");
   page.innerHTML = `<a class="btn ghost mb" href="/history">← All sessions</a>
-    <div class="card"><div class="small dim">${esc(d.kind)} · ${esc(d.meta?.scenario || d.meta?.type || "")} · ${esc(fmtT(d.created))} · ${esc(d.status)}</div>
+    <div class="card"><div class="small dim">${esc(d.kind)} · ${esc(d.meta?.scenario || d.meta?.type || "")} · ${esc(fmtT(d.created || d.meta?.created))} · ${esc(d.status)}</div>
     <h2>Session overview</h2>
     ${d.report ? `<p>${esc(d.report.summary || "")} <b>${d.report.overall ?? ""}/10</b></p>
       <div class="row"><a class="btn primary" href="/report?sid=${d.id}">Full report</a></div>` : ""}
