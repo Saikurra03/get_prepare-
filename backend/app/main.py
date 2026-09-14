@@ -59,7 +59,14 @@ def health():
             "detail": {k: st[k] for k in ("provider", "key_label", "fallback_active", "debug") if k in st}}
 
 if os.path.isdir(FRONTEND):
+    # Serve JS/CSS/images from root AND /static (Netlify uses root paths).
+    from starlette.applications import Starlette
+    _static_app = Starlette(routes=[
+        # Mount static files at both /static and root
+    ])
     app.mount("/static", StaticFiles(directory=FRONTEND), name="static")
+    app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND, "js")), name="js")
+    app.mount("/css", StaticFiles(directory=FRONTEND), name="css")
 
     @app.get("/")
     def index():
