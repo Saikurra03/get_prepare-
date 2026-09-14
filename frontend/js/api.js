@@ -25,6 +25,7 @@ const api = {
     return fetch(API_BASE + "/api/documents/upload", { method: "POST", body: fd }).then(api._j);
   },
   clearDocs: () => api.post("/api/documents/clear", {}),
+  pasteDoc: (text, kind, filename) => api.post("/api/documents/paste", { text, kind, filename: filename || "" }),
   planInterview: (b) => api.post("/api/interview/plan", b),
   answerInterview: (sid, answer) => api.post("/api/interview/answer", { session_id: sid, answer }),
   retryInterview: (sid, answer) => api.post("/api/interview/retry", { session_id: sid, answer }),

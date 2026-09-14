@@ -53,3 +53,28 @@ def remove(inp: RemoveIn):
         return {"error": "document not found", "code": "no_doc"}
     _save("documents.json", kept)
     return {"status": "removed", "doc_id": inp.doc_id}
+
+
+class PasteIn(BaseModel):
+    text: str
+    kind: str = "document"
+    filename: str = ""
+
+@router.post("/paste")
+def paste(inp: PasteIn):
+    text = (inp.text or "").strip()
+    if not text:
+        return {"error": "empty text — nothing to save", "code": "empty_text", "status": "failed"}
+    if len(text) > 200_000:
+        text = text[:200_000] + "\n\n[TRUNCATED: text too large, first 200k chars kept]"
+    kind = inp.kind if inp.kind in ("resume", "jd", "topic", "document") else "document"
+    filename = inp.filename.strip() or f"pasted_{kind}.txt"
+    doc = {"id": uuid.uuid4().hex[:8], "filename": filename, "kind": kind,
+           "chars": len(text), "text": text[:20000],
+           "status": "analyzed", "uploaded": time.time()}
+    store.save_document(doc)
+    sig = context_builder.extract_signals(
+        jd_text=text if kind == "jd" else "",
+        resume_text=text if kind == "resume" else "")
+    return {"status": "ready", "doc_id": doc["id"], "filename": doc["filename"],
+            "chars": doc["chars"], "signals": sig}
