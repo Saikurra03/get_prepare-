@@ -1,4 +1,4 @@
-"""Document upload: Uploaded -> Processing -> Analyzed -> Ready."""
+"""Document upload: Uploaded -> Processing -> Analyzed -> Ready. Scoped by section."""
 from __future__ import annotations
 import time
 import uuid
@@ -17,23 +17,21 @@ _ACCEPT_PREFIXES = (
 )
 
 @router.post("/upload")
-async def upload(file: UploadFile = File(...), kind: str = Form("document")):
+async def upload(file: UploadFile = File(...), kind: str = Form("document"), section: str = Form("")):
     data = await file.read()
     if not data:
         return {"error": f"{file.filename} is empty", "code": "empty_file", "status": "failed"}
     if len(data) > 15 * 1024 * 1024:
         return {"error": f"{file.filename} too large (max 15MB)", "code": "too_large", "status": "failed"}
-    # Validate content type loosely — accept if looks right, reject obvious binaries
     ct = (file.content_type or "").lower()
     if ct and not any(ct.startswith(p) for p in _ACCEPT_PREFIXES):
-        # Still try — the extractor will handle format errors cleanly
         pass
     try:
         text = extractor.extract_text(file.filename or "upload.txt", data)
     except ValueError as exc:
         return {"error": str(exc), "code": "invalid_document", "status": "failed"}
     doc = {"id": uuid.uuid4().hex[:8], "filename": file.filename, "kind": kind,
-           "chars": len(text), "text": text[:20000],  # stored excerpt; full truncated
+           "section": section or "", "chars": len(text), "text": text[:20000],
            "status": "analyzed", "uploaded": time.time()}
     store.save_document(doc)
     sig = context_builder.extract_signals(
@@ -44,13 +42,16 @@ async def upload(file: UploadFile = File(...), kind: str = Form("document")):
             "flow": ["uploaded", "processing", "analyzed", "ready"]}
 
 @router.get("/list")
-def list_docs():
-    docs = store.list_documents()
-    return {"documents": [{k: d[k] for k in ("id", "filename", "kind", "chars", "status") if k in d} for d in docs]}
+def list_docs(section: str = ""):
+    docs = store.list_documents(section=section)
+    return {"documents": [{k: d[k] for k in ("id", "filename", "kind", "chars", "status", "section") if k in d} for d in docs]}
+
+class ClearIn(BaseModel):
+    section: str = ""
 
 @router.post("/clear")
-def clear():
-    store.clear_documents()
+def clear(inp: ClearIn = ClearIn()):
+    store.clear_documents(section=inp.section)
     return {"status": "cleared"}
 
 class RemoveIn(BaseModel):
@@ -71,6 +72,7 @@ class PasteIn(BaseModel):
     text: str
     kind: str = "document"
     filename: str = ""
+    section: str = ""
 
 @router.post("/paste")
 def paste(inp: PasteIn):
@@ -82,7 +84,7 @@ def paste(inp: PasteIn):
     kind = inp.kind if inp.kind in ("resume", "jd", "topic", "document") else "document"
     filename = inp.filename.strip() or f"pasted_{kind}.txt"
     doc = {"id": uuid.uuid4().hex[:8], "filename": filename, "kind": kind,
-           "chars": len(text), "text": text[:20000],
+           "section": inp.section or "", "chars": len(text), "text": text[:20000],
            "status": "analyzed", "uploaded": time.time()}
     store.save_document(doc)
     sig = context_builder.extract_signals(

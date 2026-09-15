@@ -1,6 +1,7 @@
 """Provider fallback: Gemini 429 -> Groq; Groq fail -> error; no keys -> offline sentinel."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+os.environ["AI_PROVIDER_ORDER"] = "gemini,groq,openrouter,cohere"
 from backend.app.ai.base import AIResponse, ProviderFailure
 from backend.app.ai.provider_manager import ProviderManager
 

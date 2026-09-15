@@ -32,8 +32,11 @@ class ProviderManager:
         self.fallback_active: bool = False
 
     def _ordered(self) -> list[AIProvider]:
-        ordered = [self._providers[n] for n in settings.provider_order if n in self._providers]
-        rest = [p for n, p in self._providers.items() if n not in settings.provider_order]
+        # Re-read from env each call so tests can override AI_PROVIDER_ORDER
+        raw = os.environ.get("AI_PROVIDER_ORDER", "groq,gemini,openrouter,cohere")
+        order = [p.strip().lower() for p in raw.split(",") if p.strip()]
+        ordered = [self._providers[n] for n in order if n in self._providers]
+        rest = [p for n, p in self._providers.items() if n not in order]
         return ordered + rest
 
     def _max_attempts(self) -> int:

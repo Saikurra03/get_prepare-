@@ -31,7 +31,7 @@ class AnswerIn(BaseModel):
 
 @router.post("/plan")
 def plan(inp: PlanIn):
-    docs = store.get_documents(inp.doc_ids) if inp.doc_ids else store.list_documents()
+    docs = store.get_documents(inp.doc_ids) if inp.doc_ids else store.list_documents(section="interview")
     ctx = context_builder.build_context(docs)
     jd_text = " ".join(d.get("text", "") for d in docs if d.get("kind") == "jd")
     resume_text = " ".join(d.get("text", "") for d in docs if d.get("kind") == "resume")

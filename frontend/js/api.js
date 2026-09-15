@@ -19,13 +19,14 @@ const api = {
   createSession: (kind, meta) => api.post("/api/session/create", { kind, ...meta }),
   analyze: (t) => api.post("/api/coach/analyze", t),
   retryCompare: (first, second) => api.post("/api/coach/retry-compare", { first, second }),
-  docs: () => api.get("/api/documents/list"),
-  uploadDoc: (file, kind) => {
+  docs: (section) => api.get(`/api/documents/list${section ? "?section=" + encodeURIComponent(section) : ""}`),
+  uploadDoc: (file, kind, section) => {
     const fd = new FormData(); fd.append("file", file); fd.append("kind", kind);
+    if (section) fd.append("section", section);
     return fetch(API_BASE + "/api/documents/upload", { method: "POST", body: fd }).then(api._j);
   },
-  clearDocs: () => api.post("/api/documents/clear", {}),
-  pasteDoc: (text, kind, filename) => api.post("/api/documents/paste", { text, kind, filename: filename || "" }),
+  clearDocs: (section) => api.post("/api/documents/clear", { section: section || "" }),
+  pasteDoc: (text, kind, filename, section) => api.post("/api/documents/paste", { text, kind, filename: filename || "", section: section || "" }),
   planInterview: (b) => api.post("/api/interview/plan", b),
   answerInterview: (sid, answer) => api.post("/api/interview/answer", { session_id: sid, answer }),
   retryInterview: (sid, answer) => api.post("/api/interview/retry", { session_id: sid, answer }),

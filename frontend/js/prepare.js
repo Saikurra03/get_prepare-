@@ -1,4 +1,5 @@
-/* Preparation — central workspace. Type auto-selected from URL. Upload/paste real documents. Start → live interview. */
+/* Preparation — central workspace. Type auto-selected from URL. Upload/paste real documents. Start → live interview.
+   Documents are scoped to section="interview" so they never appear in other practice areas. */
 const qs = new URLSearchParams(location.search);
 const selType = qs.get("type") || "mixed";
 const TYPES = ["hr", "technical", "project", "behavioral", "resume", "jd", "topic", "mixed", "custom"];
@@ -85,8 +86,10 @@ function updateTip() {
 
 document.getElementById("s_type").onchange = updateTip;
 
+const DOC_SECTION = "interview";
+
 async function refreshDocs() {
-  try { ALL_DOCS = (await api.docs()).documents || []; } catch {}
+  try { ALL_DOCS = (await api.docs(DOC_SECTION)).documents || []; } catch {}
   renderDocSection();
 }
 
@@ -165,7 +168,7 @@ function renderDocSection() {
     const st = document.getElementById("uploadStatus");
     st.innerHTML = `Uploading <b>${esc(f.name)}</b>…`;
     try {
-      const r = await api.uploadDoc(f, acceptKind || "document");
+      const r = await api.uploadDoc(f, acceptKind || "document", DOC_SECTION);
       if (r.error) { st.innerHTML = `<span style="color:var(--bad)">Failed: ${esc(r.error)}</span>`; return; }
       st.innerHTML = `<span style="color:var(--ok)">✓ Uploaded (${(r.chars / 1000).toFixed(1)}k chars)</span>`;
       await refreshDocs();
@@ -190,7 +193,7 @@ function renderDocSection() {
     if (!text) { st.innerHTML = `<span style="color:var(--warn)">Paste some text first.</span>`; return; }
     st.innerHTML = `Saving…`;
     try {
-      const r = await api.pasteDoc(text, kind, `${KIND_LABEL[kind] || "pasted"}.txt`);
+      const r = await api.pasteDoc(text, kind, `${KIND_LABEL[kind] || "pasted"}.txt`, DOC_SECTION);
       if (r.error) { st.innerHTML = `<span style="color:var(--bad)">Failed: ${esc(r.error)}</span>`; return; }
       st.innerHTML = `<span style="color:var(--ok)">✓ Saved (${(r.chars / 1000).toFixed(1)}k chars)</span>`;
       document.getElementById("pasteText").value = "";

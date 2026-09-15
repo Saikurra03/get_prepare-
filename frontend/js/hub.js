@@ -27,7 +27,7 @@ page.innerHTML = `
 let DOC_MAP = {};
 (async () => {
   try {
-    const d = await api.docs();
+    const d = await api.docs("interview");
     const docs = d.documents || [];
     document.getElementById("docCount").textContent = `${docs.length} document(s) ready`;
     docs.forEach((doc) => { DOC_MAP[doc.kind] = (DOC_MAP[doc.kind] || 0) + 1; });

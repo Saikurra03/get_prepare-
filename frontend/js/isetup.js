@@ -56,7 +56,7 @@ function getSelectedType() {
 }
 
 async function refreshDocs() {
-  try { ALL_DOCS = (await api.docs()).documents || []; } catch {}
+  try { ALL_DOCS = (await api.docs("interview")).documents || []; } catch {}
   renderDocSection();
 }
 
@@ -143,7 +143,7 @@ function renderDocSection() {
     const status = document.getElementById("uploadStatus");
     status.innerHTML = `Uploading <b>${esc(f.name)}</b>…`;
     try {
-      const r = await api.uploadDoc(f, acceptKind || "document");
+      const r = await api.uploadDoc(f, acceptKind || "document", "interview");
       if (r.error) { status.innerHTML = `<span style="color:var(--bad)">Failed: ${esc(r.error)}</span>`; return; }
       status.innerHTML = `<span style="color:var(--good)">✓ Uploaded (${(r.chars / 1000).toFixed(1)}k chars)</span>`;
       await refreshDocs();
@@ -174,7 +174,7 @@ function renderDocSection() {
       if (!text) { status.innerHTML = `<span style="color:var(--warn)">Paste some text first.</span>`; return; }
       status.innerHTML = `Saving…`;
       try {
-        const r = await api.pasteDoc(text, kind, `${KIND_LABEL[kind] || "pasted"}.txt`);
+        const r = await api.pasteDoc(text, kind, `${KIND_LABEL[kind] || "pasted"}.txt`, "interview");
         if (r.error) { status.innerHTML = `<span style="color:var(--bad)">Failed: ${esc(r.error)}</span>`; return; }
         status.innerHTML = `<span style="color:var(--good)">✓ Saved (${(r.chars / 1000).toFixed(1)}k chars)</span>`;
         document.getElementById("pasteText").value = "";

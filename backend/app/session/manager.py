@@ -75,15 +75,23 @@ def save_document(doc: dict) -> list[dict]:
     _save("documents.json", docs)
     return docs
 
-def list_documents() -> list[dict]:
-    return _load("documents.json", [])
+def list_documents(section: str = "") -> list[dict]:
+    docs = _load("documents.json", [])
+    if section:
+        docs = [d for d in docs if d.get("section") == section]
+    return docs
 
 def get_documents(ids: list[str]) -> list[dict]:
     docs = _load("documents.json", [])
     return [d for d in docs if d["id"] in ids]
 
-def clear_documents() -> None:
-    _save("documents.json", [])
+def clear_documents(section: str = "") -> None:
+    if section:
+        docs = _load("documents.json", [])
+        docs = [d for d in docs if d.get("section") != section]
+        _save("documents.json", docs)
+    else:
+        _save("documents.json", [])
 
 # ---- profile ----
 DEFAULT_PROFILE = {

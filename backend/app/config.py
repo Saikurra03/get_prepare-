@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def _order() -> list[str]:
-    raw = os.getenv("AI_PROVIDER_ORDER", "gemini,groq,openrouter,cohere")
+    raw = os.getenv("AI_PROVIDER_ORDER", "groq,gemini,openrouter,cohere")
     return [p.strip().lower() for p in raw.split(",") if p.strip()]
 
 @dataclass

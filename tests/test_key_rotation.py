@@ -85,6 +85,7 @@ def test_invalid_key_tries_next(clean_env):
 
 
 def test_falls_through_to_next_provider(clean_env):
+    clean_env.setenv("AI_PROVIDER_ORDER", "gemini,groq")
     clean_env.setenv("GEMINI_API_KEY_1", "g1")
     clean_env.setenv("GROQ_API_KEY_1", "q1")
     key_manager.reload()
