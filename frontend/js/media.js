@@ -37,9 +37,10 @@ function createMedia() {
     const rec = new SR();
     rec.continuous = true; rec.interimResults = true; rec.lang = "en-US";
     m.rec = rec; onState(true);
-    m.browserTranscript = "";
+    // Preserve text from previous STT session — don't erase on restart
+    const prevText = m.browserTranscript || "";
     rec.onresult = (e) => {
-      let t = "";
+      let t = prevText ? prevText + " " : "";
       for (const r of e.results) t += r[0].transcript + " ";
       m.browserTranscript = t.trim();
       onText(m.browserTranscript);
@@ -133,6 +134,8 @@ function createMedia() {
   };
 
   m.getBrowserTranscript = () => m.browserTranscript;
+
+  m.clearBrowserTranscript = () => { m.browserTranscript = ""; };
 
   m.isRecording = () => m.recording;
 

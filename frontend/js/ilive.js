@@ -112,7 +112,11 @@ document.getElementById("bStopRecord").onclick = async () => {
     }
   }
   
-  document.getElementById("tx").textContent = transcript || "…";
+  // Append new transcription to existing text (don't erase previous input)
+  const existing = document.getElementById("tx").textContent.trim();
+  const hasExisting = existing && existing !== "…" && existing.length > 0;
+  const finalText = hasExisting ? (existing + " " + (transcript || "")).trim() : (transcript || "…");
+  document.getElementById("tx").textContent = finalText;
   document.getElementById("dRec").style.display = "none";
   document.getElementById("dRec").classList.remove("rec");
   document.getElementById("recT").textContent = "● idle";
@@ -133,7 +137,10 @@ document.getElementById("bRetryQ").onclick = () => {
   // Hide model answer when retrying
   const maEl = document.getElementById("modelAnswer");
   if (maEl) { maEl.style.display = "none"; maEl.innerHTML = ""; }
-  document.getElementById("tx").textContent = ""; document.getElementById("tx").focus();
+  // Clear transcript AND browser STT memory for fresh start
+  document.getElementById("tx").textContent = "";
+  media.clearBrowserTranscript();
+  document.getElementById("tx").focus();
   document.getElementById("ansLabel").textContent = "Your retry — improved version";
   document.getElementById("bSend").textContent = "Submit retry";
   document.getElementById("eval").innerHTML = `<span class="small mut">Lead with your main point in 10 seconds, one specific example.</span>`;
@@ -241,6 +248,7 @@ document.getElementById("bSend").onclick = async () => {
       maEl.innerHTML = "";
     }
     document.getElementById("tx").textContent = "";
+    media.clearBrowserTranscript();
     document.getElementById("cnt").textContent = `Question ${answered} of ${NQ}`;
     // Stop if at question limit (backend says so, or frontend count matches).
     if (r.at_limit || (!wasRetry && answered >= NQ)) { endInterview(); return; }
