@@ -1,11 +1,12 @@
 """Interview engine: plan generation, adaptive follow-ups, evaluation, report.
-Each interview type has its own system prompt for plan, evaluation, and follow-up."""
+Each interview type has its own system prompt. Feedback adapts to difficulty level."""
 from __future__ import annotations
 import random
 from backend.app.ai import service
 from backend.app.engines import speech_analysis as sa
 
 TYPES = ["hr", "technical", "project", "behavioral", "resume", "jd", "topic", "mixed", "custom"]
+DIFFICULTIES = ["beginner", "intermediate", "advanced", "expert"]
 
 BASE_QUESTIONS = {
     "hr": ["Tell me about yourself in 60 seconds.", "Why this role?", "What is your biggest strength?"],
@@ -81,6 +82,97 @@ TYPE_PLAN_INSTRUCTIONS = {
         "Focus on what the candidate specified. Ask targeted questions about "
         "the custom focus area they described. Adapt based on their responses."
     ),
+}
+
+# Difficulty-specific evaluation tone
+DIFF_EVAL_TONE = {
+    "beginner": (
+        "This is a BEGINNER candidate. Be encouraging and supportive. "
+        "Focus evaluation on: basic structure (did they answer the question?), "
+        "effort and willingness to communicate, clarity of basic ideas. "
+        "Score generously — a beginner who tries hard and communicates basic ideas deserves 5-7. "
+        "Don't punish lack of depth or advanced technical detail. "
+        "Main feedback should be about building confidence and basic structure."
+    ),
+    "intermediate": (
+        "This is an INTERMEDIATE candidate. Balanced feedback. "
+        "Evaluate: answer structure, relevance, specificity of examples, "
+        "communication clarity, and basic technical correctness where applicable. "
+        "Score fairly — reward good structure and specific examples, "
+        "flag missing depth or vague language. Main feedback should help them level up."
+    ),
+    "advanced": (
+        "This is an ADVANCED candidate. Push for excellence. "
+        "Evaluate: depth of technical reasoning, specificity of outcomes and metrics, "
+        "quality of trade-off analysis, clarity under pressure, "
+        "ability to handle follow-up probing. "
+        "Score严格 — vague or surface-level answers should score 4-6 even if structurally correct. "
+        "Main feedback should target precision and depth."
+    ),
+    "expert": (
+        "This is an EXPERT candidate. Ruthless, detailed critique. "
+        "Evaluate: technical accuracy and nuance, evidence-backed claims, "
+        "system-level thinking, edge case awareness, communication under scrutiny, "
+        "ability to defend decisions against challenge. "
+        "Score严格 — only truly excellent, well-structured, evidence-rich answers deserve 8+. "
+        "Main feedback should focus on what separates good from great."
+    ),
+}
+
+# Difficulty-specific coaching tone
+DIFF_COACHING_TONE = {
+    "beginner": (
+        "You are coaching a BEGINNER. Be warm, patient, and encouraging. "
+        "Focus on ONE simple improvement they can make. "
+        "Don't overwhelm with corrections. Build their confidence. "
+        "Use simple language. Total response under 120 words."
+    ),
+    "intermediate": (
+        "You are coaching an INTERMEDIATE candidate. Be supportive but honest. "
+        "Give one clear priority and one concrete way to improve. "
+        "Balance encouragement with constructive feedback. "
+        "Total response under 150 words."
+    ),
+    "advanced": (
+        "You are coaching an ADVANCED candidate. Be direct and specific. "
+        "Focus on what separates their answer from an excellent one. "
+        "Push for precision, depth, and better evidence. "
+        "Total response under 150 words."
+    ),
+    "expert": (
+        "You are coaching an EXPERT candidate. Be precise and technical. "
+        "Focus on nuance, edge cases, and what would make this answer exceptional. "
+        "Don't waste time on basics. Challenge them to be better. "
+        "Total response under 150 words."
+    ),
+}
+
+# Difficulty-specific model answer length and style
+DIFF_MODEL_STYLE = {
+    "beginner": {
+        "length": "80-120 words",
+        "style": "simple, clear, natural interview speech. Use everyday language. "
+                 "Sound like a real person talking, not a textbook. "
+                 "Focus on getting the basics right: answer the question, be specific, show effort.",
+    },
+    "intermediate": {
+        "length": "100-150 words",
+        "style": "well-structured, confident interview speech. "
+                 "Sound natural and conversational, like someone who has prepared but isn't reading a script. "
+                 "Include one specific example or metric.",
+    },
+    "advanced": {
+        "length": "120-180 words",
+        "style": "detailed, precise, evidence-backed interview speech. "
+                 "Sound like an experienced professional who knows their craft. "
+                 "Include specific metrics, technical decisions, and trade-offs.",
+    },
+    "expert": {
+        "length": "150-200 words",
+        "style": "comprehensive, nuanced, authoritative interview speech. "
+                 "Sound like a senior leader who can defend every claim. "
+                 "Include metrics, edge cases, system-level thinking, and clear reasoning.",
+    },
 }
 
 # Type-specific evaluation instructions
@@ -218,18 +310,11 @@ EVAL_FIELDS = ("score, strength, main_issue, retry_suggested, retry_instruction,
     "dimensions, articulation, pronunciation")
 
 
-COACHING_SYSTEM = (
-    "You are a warm, supportive interview coach. "
-    "Be genuine, specific, and encouraging — never robotic or clinical. "
-    "Base every word on the actual answer the candidate gave. "
-    "Keep the total response under 150 words."
-)
-
-
-def generate_coaching(question: str, answer: str, evaluation: dict, interview_type: str) -> dict:
-    """Generate supportive coaching feedback based on the actual answer and evaluation.
-    Returns: {appreciation, priority, specific_feedback, improvement, next_step}"""
-    sig = evaluation.get("signals", {})
+def generate_coaching(question: str, answer: str, evaluation: dict, interview_type: str,
+                      difficulty: str = "intermediate") -> dict:
+    """Generate supportive coaching feedback. Adapts tone and depth to difficulty level."""
+    interview_type = interview_type if interview_type in TYPES else "mixed"
+    difficulty = difficulty if difficulty in DIFFICULTIES else "intermediate"
     score = evaluation.get("score", 5)
     strengths = evaluation.get("good", [])
     main_issue = evaluation.get("main_issue", "")
@@ -238,19 +323,22 @@ def generate_coaching(question: str, answer: str, evaluation: dict, interview_ty
     dims = evaluation.get("dimensions", {})
     retry_instruction = evaluation.get("retry_instruction", "")
 
+    diff_tone = DIFF_COACHING_TONE.get(difficulty, DIFF_COACHING_TONE["intermediate"])
+
     prompt = (
-        f"You are coaching a candidate after a {interview_type} interview answer.\n\n"
+        f"{diff_tone}\n\n"
+        f"You are coaching after a {interview_type} interview answer ({difficulty} level).\n\n"
         f"Question: {question}\n"
         f"Candidate's answer: {answer[:1500]}\n\n"
-        f"Evaluation data:\n"
+        f"Evaluation:\n"
         f"- Score: {score}/10\n"
-        f"- Strengths found: {strengths}\n"
+        f"- Strengths: {strengths}\n"
         f"- Main issue: {main_issue}\n"
         f"- Relevance: {rel.get('verdict', 'partially')} — {rel.get('note', '')}\n"
         f"- Dimensions: {dims}\n"
         f"- Better examples: {[b.get('text', '') for b in better[:2]]}\n"
         f"- Retry instruction: {retry_instruction}\n\n"
-        "Write a supportive coaching response with exactly these 5 parts:\n\n"
+        "Write a coaching response with exactly these 5 parts:\n\n"
         "1. APPRECIATION: One genuine sentence about what the candidate did well, "
         "based on their actual answer. Be specific — reference something they actually said.\n\n"
         "2. PRIORITY: One sentence on the single most important thing to improve. "
@@ -265,10 +353,11 @@ def generate_coaching(question: str, answer: str, evaluation: dict, interview_ty
         "\"specific_feedback\": str, \"improvement\": str, \"next_step\": str}"
     )
 
-    fallback_coaching = _offline_coaching(question, score, main_issue, strengths, better, retry_instruction)
+    fallback_coaching = _offline_coaching(question, score, main_issue, strengths, better,
+                                           retry_instruction, difficulty)
 
     try:
-        data, resp = service.generate_json(prompt, system=COACHING_SYSTEM, max_tokens=500)
+        data, resp = service.generate_json(prompt, system=diff_tone, max_tokens=500)
         return {
             "appreciation": data.get("appreciation", fallback_coaching["appreciation"]),
             "priority": data.get("priority", fallback_coaching["priority"]),
@@ -282,40 +371,86 @@ def generate_coaching(question: str, answer: str, evaluation: dict, interview_ty
 
 
 def _offline_coaching(question: str, score: float, main_issue: str,
-                      strengths: list, better: list, retry_instruction: str) -> dict:
-    """Fallback coaching when AI is unavailable — based on real signals."""
-    appreciation = "Good answer — you addressed the question"
-    if strengths:
-        appreciation += f" and showed strength in {strengths[0].lower()}"
-    appreciation += "."
-    if score >= 7:
-        appreciation = "Strong answer — you communicated clearly and hit the key points."
-    elif score >= 5:
-        appreciation = "Solid attempt — you covered the main idea and showed some structure."
+                      strengths: list, better: list, retry_instruction: str,
+                      difficulty: str = "intermediate") -> dict:
+    """Fallback coaching when AI is unavailable — adapts to difficulty."""
+    # Beginner: warm, simple, encouraging
+    if difficulty == "beginner":
+        appreciation = "Good effort — you answered the question"
+        if strengths:
+            appreciation += f" and showed {strengths[0].lower()}"
+        appreciation += "."
+        if score >= 7:
+            appreciation = "Nice work — you communicated your idea clearly."
+        elif score >= 5:
+            appreciation = "You're on the right track — keep building on this."
+        else:
+            appreciation = "You gave it a try — that's what matters. Let's refine it."
+
+        priority = f"Priority: {main_issue}." if main_issue else "Priority: try to structure your answer with a clear start and end."
+        specific = f"Score: {score}/10."
+        if strengths:
+            specific += f" Good: {', '.join(strengths[:2])}."
+        improvement = ""
+        if better and better[0].get("text"):
+            improvement = f"Try: {better[0]['text']}"
+        elif retry_instruction:
+            improvement = f"Better: {retry_instruction}"
+        else:
+            improvement = "Try: say your answer in 2 short sentences."
+        next_step = "You're doing well — let's try the next question."
+
+    # Expert: sharp, technical, demanding
+    elif difficulty == "expert":
+        appreciation = "Solid response"
+        if strengths:
+            appreciation += f" — {strengths[0].lower()}"
+        appreciation += "."
+        if score >= 8:
+            appreciation = "Excellent answer — well-structured with strong evidence."
+        elif score >= 6:
+            appreciation = "Competent answer, but room for more depth and precision."
+        else:
+            appreciation = "Below expectations for this level — needs more rigor."
+
+        priority = f"Priority: {main_issue}." if main_issue else "Priority: strengthen with specific evidence and edge case awareness."
+        specific = f"Score: {score}/10."
+        if strengths:
+            specific += f" Strong: {', '.join(strengths[:2])}."
+        improvement = ""
+        if better and better[0].get("text"):
+            improvement = f"Better: {better[0]['text']}"
+        elif retry_instruction:
+            improvement = f"Better: {retry_instruction}"
+        else:
+            improvement = "Try: add one specific metric or trade-off analysis."
+        next_step = "Ready for the next challenge — push for excellence."
+
+    # Intermediate and Advanced: balanced
     else:
-        appreciation = "You gave it a go — with some adjustments, this can become much stronger."
+        appreciation = "Good answer — you addressed the question"
+        if strengths:
+            appreciation += f" and showed strength in {strengths[0].lower()}"
+        appreciation += "."
+        if score >= 7:
+            appreciation = "Strong answer — you communicated clearly and hit the key points."
+        elif score >= 5:
+            appreciation = "Solid attempt — you covered the main idea and showed some structure."
+        else:
+            appreciation = "You gave it a go — with some adjustments, this can become much stronger."
 
-    priority = f"Priority: {main_issue}." if main_issue else "Priority: tighten your answer to lead with the main point."
-
-    specific = f"Score: {score}/10."
-    if strengths:
-        specific += f" What worked: {', '.join(strengths[:2])}."
-    if main_issue:
-        specific += f" Main issue: {main_issue}."
-
-    improvement = ""
-    if better and better[0].get("text"):
-        improvement = f"Try: {better[0]['text']}"
-    elif retry_instruction:
-        improvement = f"Better: {retry_instruction}"
-    else:
-        improvement = "Try: restate your answer in 2 short sentences, starting with the result."
-
-    next_step = "Ready for the next question — keep building on this."
-    if score < 5:
-        next_step = "Don't worry — each answer is a chance to improve. Let's keep going."
-    elif score >= 8:
-        next_step = "Excellent work — let's see if you can keep this level going."
+        priority = f"Priority: {main_issue}." if main_issue else "Priority: tighten your answer to lead with the main point."
+        specific = f"Score: {score}/10."
+        if strengths:
+            specific += f" What worked: {', '.join(strengths[:2])}."
+        improvement = ""
+        if better and better[0].get("text"):
+            improvement = f"Try: {better[0]['text']}"
+        elif retry_instruction:
+            improvement = f"Better: {retry_instruction}"
+        else:
+            improvement = "Try: restate your answer in 2 short sentences, starting with the result."
+        next_step = "Ready for the next question — keep building on this."
 
     return {
         "appreciation": appreciation,
@@ -326,17 +461,14 @@ def _offline_coaching(question: str, score: float, main_issue: str,
     }
 
 
-MODEL_ANSWER_SYSTEM = (
-    "You are an expert interview coach demonstrating an ideal answer. "
-    "Write a complete, natural, confident response (100-200 words) that would score 8-9/10. "
-    "Use specific details from the candidate's context when available. "
-    "Sound human and authentic — not robotic or scripted."
-)
+def generate_model_answer(question: str, answer: str, interview_type: str, context: str = "",
+                          difficulty: str = "intermediate") -> dict:
+    """Generate a complete ideal answer. Adapts length and style to difficulty level.
+    Answer must sound like natural interview speech — flowing, confident, human."""
+    interview_type = interview_type if interview_type in TYPES else "mixed"
+    difficulty = difficulty if difficulty in DIFFICULTIES else "intermediate"
+    style = DIFF_MODEL_STYLE.get(difficulty, DIFF_MODEL_STYLE["intermediate"])
 
-
-def generate_model_answer(question: str, answer: str, interview_type: str, context: str = "") -> dict:
-    """Generate a complete ideal answer (8-9/10 quality) for the question.
-    Returns: {model_answer, provider}"""
     type_hints = {
         "hr": "Focus on presence, clear self-presentation, and genuine motivation.",
         "technical": "Focus on correctness, clear explanation of technical concepts, and reasoning.",
@@ -354,14 +486,19 @@ def generate_model_answer(question: str, answer: str, interview_type: str, conte
         f"Question: {question}\n"
         f"Candidate's attempt: {answer[:1000]}\n\n"
         f"Context: {context[:2000]}\n\n"
-        f"Interview type: {interview_type}\n"
+        f"Interview type: {interview_type} | Difficulty: {difficulty}\n"
         f"Guidelines: {hint}\n\n"
-        "Write a complete model answer (100-200 words) that would score 8-9/10. "
-        "Make it specific to this candidate's context. Sound natural and confident. "
+        f"Write a model answer ({style['length']}) that would score 8-9/10.\n"
+        f"Style: {style['style']}\n\n"
+        "CRITICAL: This must sound like a REAL PERSON talking in an interview. "
+        "Not a definition, not a textbook, not a list. "
+        "It should flow naturally — like someone thinking out loud with confidence. "
+        "Use connecting phrases: 'So basically...', 'What I did was...', 'The key thing here is...'. "
+        "Make it specific to this candidate's context. "
         "Reply JSON: {\"model_answer\": str}"
     )
 
-    fallback = _offline_model_answer(question, interview_type)
+    fallback = _offline_model_answer(question, interview_type, difficulty)
 
     try:
         data, resp = service.generate_json(prompt, system=MODEL_ANSWER_SYSTEM, max_tokens=600)
@@ -373,49 +510,127 @@ def generate_model_answer(question: str, answer: str, interview_type: str, conte
         return {**fallback, "provider": "offline"}
 
 
-def _offline_model_answer(question: str, interview_type: str) -> dict:
-    """Fallback model answer when AI is unavailable."""
+MODEL_ANSWER_SYSTEM = (
+    "You are an expert interview coach demonstrating an ideal answer. "
+    "Write a complete, natural, confident response that would score 8-9/10. "
+    "Use specific details from the candidate's context when available. "
+    "Sound human and authentic — like a real person talking in an interview, "
+    "not a definition or textbook entry. Use conversational connectors."
+)
+
+
+def _offline_model_answer(question: str, interview_type: str, difficulty: str = "intermediate") -> dict:
+    """Fallback model answer when AI is unavailable — adapts to difficulty."""
     q_lower = question.lower()
+
+    if difficulty == "beginner":
+        if "yourself" in q_lower or "tell me about" in q_lower:
+            return {"model_answer": (
+                "So basically, I'm a software developer with about two years of experience. "
+                "I mainly work with Python and JavaScript, building web apps. "
+                "At my current job, I helped fix our payment system which was failing a lot — "
+                "I added some retry logic and that cut the failures by about 40 percent. "
+                "I enjoy solving problems like that, finding what's broken and making it work better."
+            )}
+        if "strength" in q_lower:
+            return {"model_answer": (
+                "I'd say my biggest strength is that I'm really good at figuring out what's wrong "
+                "and fixing it step by step. Like when our checkout was broken, I didn't just guess — "
+                "I looked at the logs, found the specific error, and wrote a test to make sure it wouldn't "
+                "happen again. I think that patient, methodical approach helps me a lot."
+            )}
+        return {"model_answer": (
+            "That's a good question. So what I'd say is, in my experience, the most important thing "
+            "is to stay organized and communicate with your team. For example, when I was working on "
+            "a project last month, I made sure to document everything I was doing so my teammate could "
+            "pick up where I left off if needed. I think that kind of planning really helps."
+        )}
+
+    elif difficulty == "expert":
+        if "yourself" in q_lower or "tell me about" in q_lower:
+            return {"model_answer": (
+                "Sure. So I've spent the last six years building distributed systems, mostly in fintech. "
+                "The thread I keep coming back to is reliability engineering — designing systems that "
+                "degrade gracefully instead of failing silently. At my last role, I led the architecture "
+                "of a payment processing pipeline handling about two million transactions daily. "
+                "We reduced mean time to recovery from forty-five minutes to under three by implementing "
+                "circuit breakers and structured observability. What drives me is the intersection of "
+                "technical depth and business impact — understanding not just how to build something, "
+                "but why it matters for the people using it."
+            )}
+        if "challenge" in q_lower or "failure" in q_lower:
+            return {"model_answer": (
+                "Right, so there was this incident about eight months ago where our primary database "
+                "started lagging during peak hours. I noticed the symptoms first — response times "
+                "creeping up, connection pool exhaustion. I traced it to a missing index on a query "
+                "that was doing a full table scan on a sixty-million-row table. But the interesting part "
+                "wasn't the fix — it was the systemic issue. We had no query performance monitoring. "
+                "So I designed a query latency alerting system, added slow query logging, and built "
+                "a runbook. The key lesson: the fix is temporary, but the system you build around it "
+                "is what prevents the next incident."
+            )}
+        return {"model_answer": (
+            "That's an interesting question. From a system design perspective, I'd approach it "
+            "by first defining the failure modes and then working backward to the architecture. "
+            "For instance, if we're talking about a notification system, I'd consider at-least-once "
+            "delivery semantics, idempotency keys for deduplication, and graceful degradation "
+            "when downstream services are unavailable. The trade-off I'd highlight is between "
+            "consistency and availability — you can guarantee delivery but accept latency, or you "
+            "can prioritize speed and handle eventual consistency. The right choice depends on "
+            "the business context, which is why I always start with the requirements before the architecture."
+        )}
+
+    # Intermediate and Advanced (default)
     if "yourself" in q_lower or "tell me about" in q_lower:
         return {"model_answer": (
-            "I'm a software engineer with 3 years of experience building web applications. "
-            "At my current role, I led the redesign of our checkout system, reducing failures by 40%. "
-            "I specialize in Python and React, and I'm passionate about building reliable, user-friendly systems. "
-            "What drives me is solving real problems — like when I implemented idempotent retries "
-            "that saved our team hours of manual work each week."
+            "I'm a software engineer with about three years of experience building web applications. "
+            "Most of my work has been in Python and React, focusing on backend reliability. "
+            "In my current role, I led the redesign of our checkout system — it was failing about "
+            "twelve percent of the time, which was costing us real revenue. I implemented idempotent "
+            "retries with proper error handling, and we got that down to under three percent. "
+            "What I enjoy most is taking something that's broken and making it work reliably — "
+            "finding the root cause, not just patching symptoms."
         )}
     if "strength" in q_lower:
         return {"model_answer": (
-            "My biggest strength is breaking down complex problems into simple, testable pieces. "
-            "For example, when our payment system was failing intermittently, I isolated the issue "
-            "to a race condition in the retry logic, wrote a failing test first, then fixed it. "
-            "This approach has consistently helped me deliver reliable solutions under pressure."
+            "I'd say my biggest strength is debugging complex systems. I'm methodical about it — "
+            "I start with the logs, look for patterns, write a failing test to reproduce the issue, "
+            "then fix it. For example, we had this intermittent payment failure that only happened "
+            "in production. I traced it to a race condition in the retry queue, wrote a test that "
+            "reproduced it, and fixed it with proper locking. That approach — reproduce first, "
+            "then fix — has saved me countless hours."
         )}
     if "challenge" in q_lower or "failure" in q_lower:
         return {"model_answer": (
-            "We had a critical production outage where payments were silently failing. "
-            "I took ownership — traced it to a missing error handler in the retry queue, "
-            "wrote a fix with proper idempotency checks, and deployed it within 2 hours. "
-            "After that, I added monitoring alerts so we'd catch similar issues faster. "
-            "The key lesson was: always add observability before you need it."
+            "We had a production outage last year where payments were silently failing. "
+            "I took ownership — first I traced it to a missing error handler in the retry logic, "
+            "then I wrote a fix with proper idempotency checks and deployed it within two hours. "
+            "But the bigger lesson was afterward — I set up monitoring alerts so we'd catch similar "
+            "issues before customers reported them. The key takeaway was: always add observability "
+            "before you need it, not after."
         )}
     return {"model_answer": (
-        f"Based on the question '{question[:80]}...', a strong answer would include "
-        "specific examples from your experience, measurable outcomes, and clear reasoning "
-        "for your decisions. Structure your response with context, action, and result."
+        f"For this question, a strong answer would start with context — "
+        "what the situation was, what your role was. Then move to what you actually did, "
+        "specifically. Not 'we did this' but 'I did this.' End with the result — "
+        "ideally with a number or concrete outcome. That structure works at any level."
     )}
 
 
-def evaluate_answer(question: str, answer: str, interview_type: str) -> dict:
-    """Live per-answer report. Type-specific evaluation. Audio-only
-    metrics (articulation/pronunciation) are marked unavailable, never invented."""
+def evaluate_answer(question: str, answer: str, interview_type: str,
+                    difficulty: str = "intermediate") -> dict:
+    """Live per-answer report. Adapts evaluation strictness to difficulty level.
+    Audio-only metrics are marked unavailable, never invented."""
     interview_type = interview_type if interview_type in TYPES else "mixed"
+    difficulty = difficulty if difficulty in DIFFICULTIES else "intermediate"
     sig = sa.analyze(answer)
     type_eval = TYPE_EVAL_INSTRUCTIONS.get(interview_type, TYPE_EVAL_INSTRUCTIONS["mixed"])
+    diff_tone = DIFF_EVAL_TONE.get(difficulty, DIFF_EVAL_TONE["intermediate"])
 
     prompt = (
-        f"Evaluate this {interview_type} interview answer.\n"
-        f"Evaluation criteria: {type_eval}\n\n"
+        f"{diff_tone}\n\n"
+        f"Evaluate this {interview_type} interview answer ({difficulty} level).\n"
+        f"Type criteria: {type_eval}\n\n"
         f"Q: {question}\nA: {answer[:2000]}\nSignals: {sig}\n\n"
         "Reply JSON with exactly these keys: "
         "{\"score\": 0-10, \"strength\": str, \"main_issue\": str, "
@@ -483,7 +698,7 @@ def evaluate_answer(question: str, answer: str, interview_type: str) -> dict:
 
 
 def final_report(history: list[dict], role: str, jd_text: str = "",
-                 interview_type: str = "") -> dict:
+                 interview_type: str = "", difficulty: str = "intermediate") -> dict:
     scores = [h.get("evaluation", {}).get("score", 0) for h in history if h.get("evaluation")]
     avg = round(sum(scores) / len(scores), 1) if scores else 0.0
     best = max(history, key=lambda h: h.get("evaluation", {}).get("score", 0)) if history else {}
@@ -505,10 +720,12 @@ def final_report(history: list[dict], role: str, jd_text: str = "",
                           "sessions are scored from text transcripts, not analyzed audio.")
 
     type_eval = TYPE_EVAL_INSTRUCTIONS.get(interview_type, TYPE_EVAL_INSTRUCTIONS["mixed"])
+    diff_tone = DIFF_EVAL_TONE.get(difficulty, DIFF_EVAL_TONE["intermediate"])
 
     prompt = (
-        f"Write a final {interview_type} interview report for a {role} position.\n"
-        f"Evaluation criteria: {type_eval}\n\n"
+        f"{diff_tone}\n\n"
+        f"Write a final {interview_type} interview report for a {role} position ({difficulty} level).\n"
+        f"Type criteria: {type_eval}\n\n"
         f"Q&A:\n{str([(h.get('question'), (h.get('answer') or '')[:500]) for h in history])[:5000]}\n\n"
         f"JD excerpt: {jd_text[:1500]}\n\n"
         f"Measured aggregates: relevance {relevance_summary} {sentence_patterns} "

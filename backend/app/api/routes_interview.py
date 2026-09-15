@@ -77,17 +77,17 @@ def answer(inp: AnswerIn):
     _in_flight[inp.session_id] = True
     try:
         itype = s["meta"].get("type", "mixed")
+        diff = s["meta"].get("difficulty", "intermediate")
         profile_note = f"focus: {store.get_profile().get('training_focus', '')}"
         ctx = s["meta"].get("context", "")
         # Evaluate + follow-up + coaching + model answer — ALL CONCURRENTLY (4 AI calls in parallel).
-        ev_fut = _executor.submit(eng.evaluate_answer, target["question"], inp.answer, itype)
+        ev_fut = _executor.submit(eng.evaluate_answer, target["question"], inp.answer, itype, diff)
         nxt_fut = _executor.submit(eng.next_question,
                                   turns + [{"question": target["question"], "answer": inp.answer[:3000]}],
-                                  ctx, itype,
-                                  s["meta"].get("difficulty", "intermediate"), profile_note)
-        ma_fut = _executor.submit(eng.generate_model_answer, target["question"], inp.answer, itype, ctx)
+                                  ctx, itype, diff, profile_note)
+        ma_fut = _executor.submit(eng.generate_model_answer, target["question"], inp.answer, itype, ctx, diff)
         ev = ev_fut.result()
-        coaching_fut = _executor.submit(eng.generate_coaching, target["question"], inp.answer, ev, itype)
+        coaching_fut = _executor.submit(eng.generate_coaching, target["question"], inp.answer, ev, itype, diff)
         nxt = nxt_fut.result()
         coaching = coaching_fut.result()
         model = ma_fut.result()
@@ -129,16 +129,16 @@ def retry(inp: AnswerIn):
     _in_flight[inp.session_id] = True
     try:
         itype = s["meta"].get("type", "mixed")
+        diff = s["meta"].get("difficulty", "intermediate")
         profile_note = f"focus: {store.get_profile().get('training_focus', '')}"
         ctx = s["meta"].get("context", "")
-        ev_fut = _executor.submit(eng.evaluate_answer, turns[idx]["question"], inp.answer, itype)
+        ev_fut = _executor.submit(eng.evaluate_answer, turns[idx]["question"], inp.answer, itype, diff)
         nxt_fut = _executor.submit(eng.next_question,
                                   turns[:-1] + [{"question": turns[idx]["question"], "answer": inp.answer[:3000]}],
-                                  ctx, itype,
-                                  s["meta"].get("difficulty", "intermediate"), profile_note)
-        ma_fut = _executor.submit(eng.generate_model_answer, turns[idx]["question"], inp.answer, itype, ctx)
+                                  ctx, itype, diff, profile_note)
+        ma_fut = _executor.submit(eng.generate_model_answer, turns[idx]["question"], inp.answer, itype, ctx, diff)
         ev = ev_fut.result()
-        coaching_fut = _executor.submit(eng.generate_coaching, turns[idx]["question"], inp.answer, ev, itype)
+        coaching_fut = _executor.submit(eng.generate_coaching, turns[idx]["question"], inp.answer, ev, itype, diff)
         nxt = nxt_fut.result()
         coaching = coaching_fut.result()
         model = ma_fut.result()
@@ -173,6 +173,7 @@ def finish(inp: AnswerIn):
         return {"error": "interview session not found", "code": "no_session"}
     done = [t for t in s.get("turns", []) if t.get("answer")]
     report = eng.final_report(done, s["meta"].get("role", "Candidate"),
-                               s["meta"].get("jd", ""), s["meta"].get("type", ""))
+                               s["meta"].get("jd", ""), s["meta"].get("type", ""),
+                               s["meta"].get("difficulty", "intermediate"))
     finished = store.finish_session(inp.session_id, report)
     return {"session_id": inp.session_id, "report": report, "turns": len(done)}
