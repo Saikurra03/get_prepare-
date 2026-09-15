@@ -1,7 +1,63 @@
 [build]
-  # No build step needed — frontend is plain HTML/JS/CSS
   publish = "frontend"
 
+# Specific routes BEFORE catch-all
+[[redirects]]
+  from = "/interview-live"
+  to = "/ilive.html"
+  status = 200
+
+[[redirects]]
+  from = "/interview"
+  to = "/interview.html"
+  status = 200
+
+[[redirects]]
+  from = "/prepare"
+  to = "/prepare.html"
+  status = 200
+
+[[redirects]]
+  from = "/report"
+  to = "/report.html"
+  status = 200
+
+[[redirects]]
+  from = "/practice"
+  to = "/practice.html"
+  status = 200
+
+[[redirects]]
+  from = "/workspace"
+  to = "/workspace.html"
+  status = 200
+
+[[redirects]]
+  from = "/history"
+  to = "/history.html"
+  status = 200
+
+[[redirects]]
+  from = "/progress"
+  to = "/progress.html"
+  status = 200
+
+[[redirects]]
+  from = "/profile"
+  to = "/profile.html"
+  status = 200
+
+[[redirects]]
+  from = "/settings"
+  to = "/settings.html"
+  status = 200
+
+[[redirects]]
+  from = "/slang"
+  to = "/slang.html"
+  status = 200
+
+# SPA fallback (must be last)
 [[redirects]]
   from = "/*"
   to = "/index.html"

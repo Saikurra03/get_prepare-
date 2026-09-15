@@ -13,7 +13,7 @@ const NAV = [
   { sec: "Interview", items: [
     { path: "/interview", label: "Interview coach", ic: "◈" },
     { path: "/prepare", label: "Preparation", ic: "⧉", sub: 1 },
-    { path: "/prepare#docs", label: "Documents", ic: "🗎", sub: 1 },
+    { path: "/prepare?type=resume", label: "Documents", ic: "🗎", sub: 1 },
   ]},
   { sec: "Progress", items: [
     { path: "/progress", label: "Overview", ic: "▦" },

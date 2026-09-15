@@ -1,4 +1,20 @@
-# Serve static assets from root
+# Static assets
 /static/*    /:splat    200
-# SPA fallback
+
+# Interview flow (specific routes BEFORE catch-all)
+/interview-live    /ilive.html    200
+/interview         /interview.html 200
+/prepare           /prepare.html   200
+/report            /report.html    200
+
+# Other pages
+/practice    /practice.html   200
+/workspace   /workspace.html  200
+/history     /history.html    200
+/progress    /progress.html   200
+/profile     /profile.html    200
+/settings    /settings.html   200
+/slang       /slang.html      200
+
+# SPA fallback (must be last)
 /*    /index.html   200
