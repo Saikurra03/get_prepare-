@@ -20,7 +20,8 @@ page.innerHTML = `
     <span><span class="dot" id="dMic"></span>Mic</span>
     <span><span class="dot rec" id="dRec" style="display:none"></span><span id="recT">● idle</span></span>
     <span class="small dim" id="cnt"></span></div>
-    <div class="row"><button id="bCam">Camera</button><button id="bMic">Mic</button></div></div>
+    <div class="row"><button id="bCam">Camera</button><button id="bMic">Mic</button></div>
+    <div id="modelAnswer" class="mt" style="display:none"></div></div>
     <div><div class="card"><div class="small dim" id="ansLabel">Your answer — speak or type</div>
       <div class="transcript" id="tx" contenteditable="true">…</div>
       <div class="row mt">
@@ -55,6 +56,9 @@ document.getElementById("bRecord").onclick = async () => {
   const ok = await media.startRecording();
   if (!ok) { document.getElementById("sttStatus").innerHTML = `<span style="color:var(--warn)">Failed to start recording — check mic permission.</span>`; return; }
   recording = true;
+  // Hide model answer when starting new recording
+  const maEl = document.getElementById("modelAnswer");
+  if (maEl) { maEl.style.display = "none"; maEl.innerHTML = ""; }
   document.getElementById("bRecord").style.display = "none";
   document.getElementById("bStopRecord").style.display = "";
   document.getElementById("bTalk").disabled = true;
@@ -118,12 +122,17 @@ document.getElementById("bTalk").onclick = (e) => media.listen(
   (t) => { document.getElementById("tx").textContent = t; document.getElementById("sttStatus").innerHTML = `<span class="small mut">🎤 Browser STT active</span>`; },
   (on) => { document.getElementById("dRec").style.display = on ? "" : "none";
     document.getElementById("recT").textContent = on ? "● listening" : "● idle";
-    document.body.classList.toggle("speaking", on); e.target.textContent = on ? "■ Stop" : "🎤 Browser STT"; },
+    document.body.classList.toggle("speaking", on); e.target.textContent = on ? "■ Stop" : "🎤 Browser STT";
+    // Hide model answer when starting new recording
+    if (on) { const maEl = document.getElementById("modelAnswer"); if (maEl) { maEl.style.display = "none"; maEl.innerHTML = ""; } } },
   () => { document.getElementById("sttStatus").innerHTML = `<span style="color:var(--warn)">Microphone unavailable — type your answer.</span>`; });
 
 document.getElementById("bRetryQ").onclick = () => {
   if (submitting) return;
   retryMode = true;
+  // Hide model answer when retrying
+  const maEl = document.getElementById("modelAnswer");
+  if (maEl) { maEl.style.display = "none"; maEl.innerHTML = ""; }
   document.getElementById("tx").textContent = ""; document.getElementById("tx").focus();
   document.getElementById("ansLabel").textContent = "Your retry — improved version";
   document.getElementById("bSend").textContent = "Submit retry";
@@ -219,6 +228,17 @@ document.getElementById("bSend").onclick = async () => {
         _lastAudioEl.play();
         replayBtn.textContent = "■ Stop replay";
       };
+    }
+    // Show model answer below camera buttons (left column)
+    const maEl = document.getElementById("modelAnswer");
+    if (r.model_answer) {
+      maEl.style.display = "";
+      maEl.innerHTML = `<div class="card quiet" style="border:1px solid rgba(52,211,153,0.3);background:rgba(52,211,153,0.05)">
+        <div class="small" style="color:var(--ok);font-weight:600;margin-bottom:6px">📝 Model Answer (8-9/10)</div>
+        <div class="small" style="line-height:1.5">${esc(r.model_answer)}</div></div>`;
+    } else {
+      maEl.style.display = "none";
+      maEl.innerHTML = "";
     }
     document.getElementById("tx").textContent = "";
     document.getElementById("cnt").textContent = `Question ${answered} of ${NQ}`;

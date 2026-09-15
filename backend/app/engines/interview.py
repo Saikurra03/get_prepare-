@@ -326,6 +326,86 @@ def _offline_coaching(question: str, score: float, main_issue: str,
     }
 
 
+MODEL_ANSWER_SYSTEM = (
+    "You are an expert interview coach demonstrating an ideal answer. "
+    "Write a complete, natural, confident response (100-200 words) that would score 8-9/10. "
+    "Use specific details from the candidate's context when available. "
+    "Sound human and authentic — not robotic or scripted."
+)
+
+
+def generate_model_answer(question: str, answer: str, interview_type: str, context: str = "") -> dict:
+    """Generate a complete ideal answer (8-9/10 quality) for the question.
+    Returns: {model_answer, provider}"""
+    type_hints = {
+        "hr": "Focus on presence, clear self-presentation, and genuine motivation.",
+        "technical": "Focus on correctness, clear explanation of technical concepts, and reasoning.",
+        "project": "Focus on personal ownership, specific technical decisions, and measurable outcomes.",
+        "behavioral": "Focus on STAR structure (Situation-Task-Action-Result) with concrete examples.",
+        "resume": "Focus on specific projects and skills from the resume, with concrete examples.",
+        "jd": "Focus on alignment with job description requirements and honest gap acknowledgment.",
+        "topic": "Focus on deep understanding of the material with practical applications.",
+        "mixed": "Balance clarity, specificity, and structure across all areas.",
+        "custom": "Focus on the custom area with specific examples.",
+    }
+    hint = type_hints.get(interview_type, type_hints["mixed"])
+
+    prompt = (
+        f"Question: {question}\n"
+        f"Candidate's attempt: {answer[:1000]}\n\n"
+        f"Context: {context[:2000]}\n\n"
+        f"Interview type: {interview_type}\n"
+        f"Guidelines: {hint}\n\n"
+        "Write a complete model answer (100-200 words) that would score 8-9/10. "
+        "Make it specific to this candidate's context. Sound natural and confident. "
+        "Reply JSON: {\"model_answer\": str}"
+    )
+
+    fallback = _offline_model_answer(question, interview_type)
+
+    try:
+        data, resp = service.generate_json(prompt, system=MODEL_ANSWER_SYSTEM, max_tokens=600)
+        ma = data.get("model_answer", "")
+        if not ma or len(ma) < 30:
+            return {**fallback, "provider": resp.provider}
+        return {"model_answer": ma, "provider": resp.provider}
+    except Exception:
+        return {**fallback, "provider": "offline"}
+
+
+def _offline_model_answer(question: str, interview_type: str) -> dict:
+    """Fallback model answer when AI is unavailable."""
+    q_lower = question.lower()
+    if "yourself" in q_lower or "tell me about" in q_lower:
+        return {"model_answer": (
+            "I'm a software engineer with 3 years of experience building web applications. "
+            "At my current role, I led the redesign of our checkout system, reducing failures by 40%. "
+            "I specialize in Python and React, and I'm passionate about building reliable, user-friendly systems. "
+            "What drives me is solving real problems — like when I implemented idempotent retries "
+            "that saved our team hours of manual work each week."
+        )}
+    if "strength" in q_lower:
+        return {"model_answer": (
+            "My biggest strength is breaking down complex problems into simple, testable pieces. "
+            "For example, when our payment system was failing intermittently, I isolated the issue "
+            "to a race condition in the retry logic, wrote a failing test first, then fixed it. "
+            "This approach has consistently helped me deliver reliable solutions under pressure."
+        )}
+    if "challenge" in q_lower or "failure" in q_lower:
+        return {"model_answer": (
+            "We had a critical production outage where payments were silently failing. "
+            "I took ownership — traced it to a missing error handler in the retry queue, "
+            "wrote a fix with proper idempotency checks, and deployed it within 2 hours. "
+            "After that, I added monitoring alerts so we'd catch similar issues faster. "
+            "The key lesson was: always add observability before you need it."
+        )}
+    return {"model_answer": (
+        f"Based on the question '{question[:80]}...', a strong answer would include "
+        "specific examples from your experience, measurable outcomes, and clear reasoning "
+        "for your decisions. Structure your response with context, action, and result."
+    )}
+
+
 def evaluate_answer(question: str, answer: str, interview_type: str) -> dict:
     """Live per-answer report. Type-specific evaluation. Audio-only
     metrics (articulation/pronunciation) are marked unavailable, never invented."""

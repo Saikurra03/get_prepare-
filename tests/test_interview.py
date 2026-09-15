@@ -143,3 +143,14 @@ def test_generate_coaching_offline_fallback():
     assert "Priority:" in coaching["priority"]
     assert coaching["improvement"]
     assert coaching["next_step"]
+
+def test_generate_model_answer_returns_text():
+    ma = eng.generate_model_answer("Tell me about yourself.", "I am a developer", "hr")
+    assert "model_answer" in ma
+    assert len(ma["model_answer"]) > 30
+
+def test_generate_model_answer_offline_fallback():
+    """Model answer works even when AI is unavailable."""
+    ma = eng.generate_model_answer("Tell me about yourself.", "I am a developer", "hr", "")
+    assert ma["model_answer"]
+    assert len(ma["model_answer"]) > 30
