@@ -1,9 +1,11 @@
-"""Session + profile persistence (JSON files). Derived coaching data only — no raw A/V."""
+"""Session + profile persistence (JSON files). Derived coaching data only — no raw A/V.
+Session data is also encoded in the session ID for resilience against ephemeral disk."""
 from __future__ import annotations
 import json
 import os
 import time
 import uuid
+import base64
 from backend.app.config import settings
 
 def _dir() -> str:
@@ -28,6 +30,37 @@ def _save(name: str, obj) -> None:
     with open(_path(name), "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2)
 
+# ---- session ID encoding (resilience for ephemeral disk) ----
+_SESSION_PREFIX = "s_"
+
+def _encode_session(session: dict) -> str:
+    """Encode session data into the session ID for disk-independent recovery."""
+    compact = {
+        "id": session["id"],
+        "kind": session.get("kind", "interview"),
+        "created": session.get("created", 0),
+        "meta": session.get("meta", {}),
+        "turns": session.get("turns", []),
+        "status": session.get("status", "active"),
+        "report": session.get("report"),
+    }
+    raw = json.dumps(compact, separators=(",", ":"))
+    encoded = base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+    return _SESSION_PREFIX + encoded
+
+def _decode_session(sid: str) -> dict | None:
+    """Decode session data from the session ID. Returns None if invalid."""
+    if not sid.startswith(_SESSION_PREFIX):
+        return None
+    try:
+        encoded = sid[len(_SESSION_PREFIX):]
+        # Re-add padding
+        padded = encoded + "=" * (4 - len(encoded) % 4)
+        raw = base64.urlsafe_b64decode(padded)
+        return json.loads(raw)
+    except Exception:
+        return None
+
 # ---- sessions ----
 def create_session(kind: str, meta: dict | None = None) -> dict:
     sessions = _load("sessions.json", [])
@@ -35,35 +68,58 @@ def create_session(kind: str, meta: dict | None = None) -> dict:
          "meta": meta or {}, "turns": [], "status": "active"}
     sessions.append(s)
     _save("sessions.json", sessions)
-    return s
+    # Return with encoded ID for resilience
+    return {**s, "id": _encode_session(s)}
 
 def get_session(sid: str) -> dict | None:
+    # First try: load from file
     for s in _load("sessions.json", []):
         if s["id"] == sid:
             return s
+    # Fallback: decode from session ID (handles ephemeral disk wipe)
+    decoded = _decode_session(sid)
+    if decoded and decoded.get("id"):
+        # Try to find in file with the raw ID
+        for s in _load("sessions.json", []):
+            if s["id"] == decoded["id"]:
+                return s
+        # File lost — reconstruct from encoded data
+        return decoded
     return None
+
+def _save_session(session: dict) -> None:
+    """Save session to file AND update encoded ID."""
+    sessions = _load("sessions.json", [])
+    raw_id = _decode_session(session["id"])["id"] if session["id"].startswith(_SESSION_PREFIX) else session["id"]
+    found = False
+    for i, s in enumerate(sessions):
+        if s["id"] == raw_id:
+            sessions[i] = {**session, "id": raw_id}
+            found = True
+            break
+    if not found:
+        sessions.append({**session, "id": raw_id})
+    _save("sessions.json", sessions)
 
 def append_turn(sid: str, turn: dict) -> dict | None:
-    sessions = _load("sessions.json", [])
-    for s in sessions:
-        if s["id"] == sid:
-            s["turns"].append(turn)
-            _save("sessions.json", sessions)
-            return s
-    return None
+    s = get_session(sid)
+    if not s:
+        return None
+    s["turns"].append(turn)
+    _save_session(s)
+    return s
 
 def finish_session(sid: str, report: dict | None = None) -> dict | None:
-    sessions = _load("sessions.json", [])
-    for s in sessions:
-        if s["id"] == sid:
-            s["status"] = "finished"
-            if report is not None:
-                s["report"] = report
-            _save("sessions.json", sessions)
-            if report or s.get("turns"):
-                update_profile_from_session(s)
-            return s
-    return None
+    s = get_session(sid)
+    if not s:
+        return None
+    s["status"] = "finished"
+    if report is not None:
+        s["report"] = report
+    _save_session(s)
+    if report or s.get("turns"):
+        update_profile_from_session(s)
+    return s
 
 def list_sessions() -> list[dict]:
     return _load("sessions.json", [])

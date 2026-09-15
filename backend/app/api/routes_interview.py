@@ -157,10 +157,14 @@ def retry(inp: AnswerIn):
 
 
 def _persist_turns(session_id: str, turns: list[dict]) -> None:
-    from backend.app.session.manager import _load, _save
+    from backend.app.session.manager import _load, _save, _decode_session
+    raw_id = session_id
+    decoded = _decode_session(session_id)
+    if decoded:
+        raw_id = decoded.get("id", session_id)
     sessions = _load("sessions.json", [])
     for ss in sessions:
-        if ss["id"] == session_id:
+        if ss["id"] == raw_id:
             ss["turns"] = turns
             break
     _save("sessions.json", sessions)
