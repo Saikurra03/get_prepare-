@@ -5,7 +5,9 @@ const page = buildShell("Interview", "BERREADY / Interview / Live");
 const media = createMedia();
 let answered = 0, t0 = Date.now(), tick = null, submitting = false, retryMode = false;
 let currentRequestId = 0;
-let NQ = 5; // will be overwritten from session meta
+let NQ = 5;
+let _lastBlobUrl = null;   // blob URL of the most recent recording for replay
+let _lastAudioEl = null;   // currently playing Audio element
 
 page.innerHTML = `
   <div class="card mb"><div class="row"><div><div class="small dim" id="ivMeta">Preparing…</div>
@@ -76,7 +78,13 @@ document.getElementById("bStopRecord").onclick = async () => {
   const blob = await media.stopRecording();
   let transcript = "";
   let usedFallback = false;
-  
+
+  // Store blob for replay — revoke old URL first
+  if (_lastBlobUrl) { try { URL.revokeObjectURL(_lastBlobUrl); } catch {} _lastBlobUrl = null; }
+  if (blob && blob.size > 0) {
+    _lastBlobUrl = URL.createObjectURL(blob);
+  }
+
   if (blob) {
     const result = await media.uploadRecording(blob, "en");
     transcript = result.text || "";
@@ -141,8 +149,11 @@ function reportPanel(ev, cmp) {
     `<div class="small">✎ <i>“${esc(s.problem)}”</i><br/>→ ${esc(s.fix)}</div>`).join("");
   const better = (ev.better_examples || []).map((b) =>
     `<div class="small">“${esc(b.text)}”<br/><span class="dim">Why stronger: ${esc(b.why)}</span></div>`).join("");
+  const replayHtml = _lastBlobUrl
+    ? `<button class="ghost" id="bReplay" title="Replay your recorded answer">▶ Replay answer</button>`
+    : "";
   return `<div class="card quiet" style="border:1px solid var(--line-soft)">
-    <b>Answer feedback</b> <span class="score">${ev.score ?? "—"}/10</span>
+    <div class="row"><b>Answer feedback</b> <span class="score">${ev.score ?? "—"}/10</span>${replayHtml}</div>
     ${(ev.good || []).map((g) => `<div class="small">✓ ${esc(g)}</div>`).join("")}
     ${ev.biggest_issue ? `<div class="small">⚠ ${esc(ev.biggest_issue)}</div>` : ""}
     ${rel.note ? `<div class="small">🎯 Relevance (${esc(rel.verdict || "")}): ${esc(rel.note)}</div>` : ""}
@@ -186,6 +197,17 @@ document.getElementById("bSend").onclick = async () => {
       + (r.retry_suggested && !wasRetry ? `<div class="row mt"><button id="bRetry2">🔁 ${esc(r.retry_instruction || "Retry this answer")}</button></div>` : "");
     const rb = document.getElementById("bRetry2");
     if (rb) rb.onclick = () => document.getElementById("bRetryQ").click();
+    // Wire replay button — plays the original recording blob
+    const replayBtn = document.getElementById("bReplay");
+    if (replayBtn && _lastBlobUrl) {
+      replayBtn.onclick = () => {
+        if (_lastAudioEl && !_lastAudioEl.paused) { _lastAudioEl.pause(); _lastAudioEl = null; replayBtn.textContent = "▶ Replay answer"; return; }
+        _lastAudioEl = new Audio(_lastBlobUrl);
+        _lastAudioEl.onended = () => { replayBtn.textContent = "▶ Replay answer"; };
+        _lastAudioEl.play();
+        replayBtn.textContent = "■ Stop replay";
+      };
+    }
     document.getElementById("tx").textContent = "";
     document.getElementById("cnt").textContent = `Question ${answered} of ${NQ}`;
     // Stop if at question limit (backend says so, or frontend count matches).
@@ -198,6 +220,9 @@ document.getElementById("bSend").onclick = async () => {
 
 async function endInterview() {
   clearInterval(tick); media.stopListen();
+  // Clean up blob URLs
+  if (_lastAudioEl) { try { _lastAudioEl.pause(); } catch {} _lastAudioEl = null; }
+  if (_lastBlobUrl) { try { URL.revokeObjectURL(_lastBlobUrl); } catch {} _lastBlobUrl = null; }
   try { await api.finishInterview(sid); } catch {}
   location.href = `/report?sid=${sid}`;
 }

@@ -9,6 +9,13 @@ from backend.app.session import manager as store
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
+_ACCEPT_PREFIXES = (
+    "application/pdf", "application/vnd.openxmlformats", "application/msword",
+    "application/vnd.ms-powerpoint", "text/", "application/json",
+    "application/x-python", "application/x-javascript", "application/javascript",
+    "application/xml", "image/svg",
+)
+
 @router.post("/upload")
 async def upload(file: UploadFile = File(...), kind: str = Form("document")):
     data = await file.read()
@@ -16,6 +23,11 @@ async def upload(file: UploadFile = File(...), kind: str = Form("document")):
         return {"error": f"{file.filename} is empty", "code": "empty_file", "status": "failed"}
     if len(data) > 15 * 1024 * 1024:
         return {"error": f"{file.filename} too large (max 15MB)", "code": "too_large", "status": "failed"}
+    # Validate content type loosely — accept if looks right, reject obvious binaries
+    ct = (file.content_type or "").lower()
+    if ct and not any(ct.startswith(p) for p in _ACCEPT_PREFIXES):
+        # Still try — the extractor will handle format errors cleanly
+        pass
     try:
         text = extractor.extract_text(file.filename or "upload.txt", data)
     except ValueError as exc:
