@@ -41,7 +41,7 @@ def plan(inp: PlanIn):
     p = eng.build_plan(inp.interview_type, inp.difficulty, ctx or "General candidate.", signals, inp.num_questions)
     session = store.create_session("interview", {"type": inp.interview_type,
                                                  "difficulty": inp.difficulty, "role": p.get("role", inp.role),
-                                                 "context": ctx[:4000], "jd": jd_text[:4000],
+                                                 "context": ctx[:8000], "jd": jd_text[:6000],
                                                  "num_questions": inp.num_questions})
     first_q = (p["questions"] or ["Tell me about yourself."])[0]
     store.append_turn(session["id"], {"question": first_q, "answer": None})
@@ -160,6 +160,7 @@ def finish(inp: AnswerIn):
     if not s:
         return {"error": "interview session not found", "code": "no_session"}
     done = [t for t in s.get("turns", []) if t.get("answer")]
-    report = eng.final_report(done, s["meta"].get("role", "Candidate"), s["meta"].get("jd", ""))
+    report = eng.final_report(done, s["meta"].get("role", "Candidate"),
+                               s["meta"].get("jd", ""), s["meta"].get("type", ""))
     finished = store.finish_session(inp.session_id, report)
     return {"session_id": inp.session_id, "report": report, "turns": len(done)}

@@ -1,10 +1,11 @@
 """Build compact interview context from extracted docs (avoid sending huge docs every call)."""
 from __future__ import annotations
 
-def build_context(docs: list[dict], max_chars: int = 6000) -> str:
-    """docs: [{kind, filename, text}]. Returns compacted context with per-doc caps."""
+def build_context(docs: list[dict], max_chars: int = 10000) -> str:
+    """docs: [{kind, filename, text}]. Returns compacted context with per-doc caps.
+    Each doc gets at least 1500 chars to ensure enough material for meaningful questions."""
     out: list[str] = []
-    per = max(800, max_chars // max(1, len(docs)))
+    per = max(1500, max_chars // max(1, len(docs)))
     for d in docs:
         kind = d.get("kind", "document")
         text = (d.get("text") or "")[:per]

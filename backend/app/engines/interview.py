@@ -1,4 +1,5 @@
-"""Interview engine: plan generation, adaptive follow-ups, evaluation, report."""
+"""Interview engine: plan generation, adaptive follow-ups, evaluation, report.
+Each interview type has its own system prompt for plan, evaluation, and follow-up."""
 from __future__ import annotations
 import random
 from backend.app.ai import service
@@ -18,14 +19,149 @@ BASE_QUESTIONS = {
     "custom": ["Tell me about yourself.", "What should we focus on first?", "Give me a specific example from your experience."],
 }
 
-def build_plan(interview_type: str, difficulty: str, context: str, signals: dict | None = None, num_questions: int = 5) -> dict:
+# Type-specific system instructions for plan generation
+TYPE_PLAN_INSTRUCTIONS = {
+    "hr": (
+        "You are a senior HR interviewer. Generate questions about: self-introduction, "
+        "career motivation, strengths/weaknesses, teamwork, conflict resolution, "
+        "leadership style, why this company/role, salary expectations, availability. "
+        "Focus on presence, confidence, clarity, and cultural fit. "
+        "If a resume is provided, ask about specific experience listed on it."
+    ),
+    "technical": (
+        "You are a senior technical interviewer. Generate questions about: "
+        "core technical skills, system design, debugging approach, coding methodology, "
+        "architecture decisions, trade-offs, technical depth in the candidate's stack. "
+        "If technical material or resume is provided, ask about specific technologies mentioned. "
+        "Questions should test actual understanding, not just buzzword recall."
+    ),
+    "project": (
+        "You are a technical lead interviewing about projects. Generate questions about: "
+        "specific projects from the candidate's resume/material, their personal contribution, "
+        "technical decisions made, challenges faced, outcomes and metrics, "
+        "what they would do differently, team dynamics, technologies used. "
+        "If project material is provided, ask about specific details from it."
+    ),
+    "behavioral": (
+        "You are a behavioral interviewer using STAR method. Generate questions about: "
+        "specific situations showing leadership, conflict, failure, teamwork, "
+        "deadline pressure, difficult decisions, receiving feedback. "
+        "Each question should prompt for Situation-Task-Action-Result structure. "
+        "Ask for concrete examples, not hypotheticals."
+    ),
+    "resume": (
+        "You are an interviewer who has read the candidate's resume carefully. "
+        "Generate questions that target SPECIFIC sections of the resume: "
+        "specific projects, specific skills, specific experiences listed. "
+        "Ask about things actually written on the resume — not generic questions. "
+        "Probe for depth: 'You listed X — tell me about a specific time you used it.'"
+    ),
+    "jd": (
+        "You are an interviewer comparing a candidate against a job description. "
+        "Generate questions that test alignment with JD requirements: "
+        "specific requirements from the JD, gaps between candidate and JD, "
+        "how candidate's experience maps to the role, what candidate brings that JD asks for. "
+        "If both JD and resume are provided, compare them and probe gaps."
+    ),
+    "topic": (
+        "You are an expert interviewer testing knowledge of a specific topic. "
+        "Generate questions that test deep understanding of the uploaded material: "
+        "core concepts, practical applications, edge cases, trade-offs, "
+        "real-world examples, how the topic connects to broader knowledge. "
+        "Questions must come FROM the material — not generic questions about the topic area."
+    ),
+    "mixed": (
+        "You are conducting a comprehensive interview covering multiple areas. "
+        "Combine: HR questions (self-introduction, motivation), technical questions "
+        "(skills, problem-solving), and behavioral questions (STAR examples). "
+        "Balance the mix across all three areas. Adapt based on candidate responses."
+    ),
+    "custom": (
+        "You are following the candidate's custom interview instructions. "
+        "Focus on what the candidate specified. Ask targeted questions about "
+        "the custom focus area they described. Adapt based on their responses."
+    ),
+}
+
+# Type-specific evaluation instructions
+TYPE_EVAL_INSTRUCTIONS = {
+    "hr": (
+        "Evaluate for HR criteria: confidence, clarity of self-presentation, "
+        "relevant experience, cultural fit indicators, communication style, "
+        "authenticity, self-awareness. Check if answers show genuine motivation."
+    ),
+    "technical": (
+        "Evaluate for technical criteria: accuracy of technical claims, "
+        "depth of understanding, problem-solving approach, ability to explain "
+        "complex concepts clearly, awareness of trade-offs, practical experience."
+    ),
+    "project": (
+        "Evaluate for project criteria: clear personal contribution (not team), "
+        "specific technical decisions, measurable outcomes, lessons learned, "
+        "ownership of challenges, realistic assessment of what went well/poorly."
+    ),
+    "behavioral": (
+        "Evaluate for behavioral criteria: STAR structure (Situation-Task-Action-Result), "
+        "specific concrete examples (not hypotheticals), personal role in the outcome, "
+        "self-reflection and learning, relevance of the example to the question."
+    ),
+    "resume": (
+        "Evaluate for resume accuracy: claims match resume content, "
+        "depth of experience matches stated roles, specific examples for listed projects, "
+        "honest representation of skills and contributions."
+    ),
+    "jd": (
+        "Evaluate for JD alignment: answers address specific JD requirements, "
+        "experience maps to role needs, gaps are acknowledged honestly, "
+        "candidate shows understanding of the role's actual responsibilities."
+    ),
+    "topic": (
+        "Evaluate for topic mastery: accurate understanding of material, "
+        "ability to explain concepts clearly, practical application knowledge, "
+        "awareness of edge cases and limitations, depth beyond surface-level."
+    ),
+    "mixed": (
+        "Evaluate across all dimensions: communication clarity, technical depth, "
+        "STAR structure for behavioral, self-presentation, relevance of examples. "
+        "Weight based on what the answer attempted to address."
+    ),
+    "custom": (
+        "Evaluate based on the custom focus area specified. "
+        "Check relevance to the custom instructions, depth of response, "
+        "clarity of communication, and specific examples."
+    ),
+}
+
+# Type-specific next-question instructions
+TYPE_FOLLOWUP_INSTRUCTIONS = {
+    "hr": "Ask a follow-up about their motivation, self-awareness, or how they handle specific workplace situations.",
+    "technical": "Ask a deeper technical question — probe for implementation details, trade-offs, or alternative approaches.",
+    "project": "Ask about a specific technical decision, outcome metric, or what they would change if they did it again.",
+    "behavioral": "Ask for another specific example, or probe deeper into the STAR elements (What exactly did you do? What was the result?).",
+    "resume": "Ask about a specific item on their resume — a project, skill, or experience they mentioned.",
+    "jd": "Ask about how their specific experience maps to a JD requirement, or probe a gap area.",
+    "topic": "Ask about a specific concept from the material, its application, or an edge case.",
+    "mixed": "Adapt the follow-up to the area the candidate just addressed — go deeper or shift to a new area.",
+    "custom": "Follow up on the custom focus area they specified.",
+}
+
+
+def build_plan(interview_type: str, difficulty: str, context: str,
+               signals: dict | None = None, num_questions: int = 5) -> dict:
     interview_type = interview_type if interview_type in TYPES else "mixed"
     seeds = list(BASE_QUESTIONS[interview_type])
+    type_instructions = TYPE_PLAN_INSTRUCTIONS.get(interview_type, TYPE_PLAN_INSTRUCTIONS["mixed"])
+
     prompt = (
         f"You are a realistic {interview_type} interviewer ({difficulty} level).\n"
-        f"Candidate context:\n{context[:4000]}\nSignals: {signals or {}}\n"
-        f"Seed questions: {seeds}\n"
-        f"Create an interview plan: {num_questions} questions tailored to this candidate, increasing depth. "
+        f"Type-specific guidance:\n{type_instructions}\n\n"
+        f"Candidate context (resume, JD, project material, topic — whatever was uploaded):\n"
+        f"{context[:6000]}\n\n"
+        f"Skill signals: {signals or {}}\n\n"
+        f"Seed questions (use as inspiration, customize to the candidate): {seeds}\n\n"
+        f"Generate exactly {num_questions} questions for this {difficulty}-level {interview_type} interview. "
+        "Questions must be SPECIFIC to this candidate's material and role — not generic. "
+        "Increase depth as questions progress. "
         "Reply JSON: {\"role\": str, \"focus\": [str], \"questions\": [str]}"
     )
     try:
@@ -38,22 +174,29 @@ def build_plan(interview_type: str, difficulty: str, context: str, signals: dict
         return {"role": "Candidate", "focus": seeds[:2], "questions": seeds[:num_questions],
                 "provider": "offline", "fallback_active": False}
 
+
 def next_question(history: list[dict], context: str, interview_type: str, difficulty: str,
                   profile_note: str = "") -> dict:
+    interview_type = interview_type if interview_type in TYPES else "mixed"
     last = history[-1] if history else {}
     last_q = last.get("question", "")
-    last_a = (last.get("answer") or "")[:1500]
+    last_a = (last.get("answer") or "")[:2000]
     prev_fb = ""
     if len(history) >= 2:
         ev = (history[-2].get("evaluation") or {})
         if ev.get("main_issue"):
             prev_fb = f" Known weakness to probe: {ev['main_issue']}."
+    type_hint = TYPE_FOLLOWUP_INSTRUCTIONS.get(interview_type, "")
+
     prompt = (
-        f"You are conducting a {interview_type} interview ({difficulty}).\nContext: {context[:3000]}\n"
-        f"Last question: {last_q}\nLast answer: {last_a}\n"
-        f"Candidate profile: {profile_note[:300]}.{prev_fb}\n"
-        "Ask ONE adaptive follow-up that goes deeper (why/how/prove it), referencing their words. "
-        "Keep it under 25 words. Also give a minimal bridge line (<=10 words, e.g. 'Good. Let's go deeper.'). "
+        f"You are conducting a {interview_type} interview ({difficulty}).\n"
+        f"Type guidance: {type_hint}\n\n"
+        f"Candidate context:\n{context[:4000]}\n\n"
+        f"Last question: {last_q}\nLast answer: {last_a}\n\n"
+        f"Candidate profile: {profile_note[:300]}.{prev_fb}\n\n"
+        "Ask ONE adaptive follow-up that goes deeper, referencing their actual words. "
+        "The question must be specific to the candidate's material/experience — not generic. "
+        "Keep it under 30 words. Also give a brief bridge line (<=10 words). "
         "Reply JSON: {\"bridge\": str, \"question\": str}"
     )
     try:
@@ -69,17 +212,23 @@ def next_question(history: list[dict], context: str, interview_type: str, diffic
         return {"bridge": "Let's explore that.", "question": q,
                 "provider": "offline", "fallback_active": False}
 
+
 EVAL_FIELDS = ("score, strength, main_issue, retry_suggested, retry_instruction, "
     "good, biggest_issue, relevance, sentences, better_examples, interviewer_want, "
     "dimensions, articulation, pronunciation")
 
+
 def evaluate_answer(question: str, answer: str, interview_type: str) -> dict:
-    """Live per-answer report. Only uses evidence in the transcript; audio-only
+    """Live per-answer report. Type-specific evaluation. Audio-only
     metrics (articulation/pronunciation) are marked unavailable, never invented."""
+    interview_type = interview_type if interview_type in TYPES else "mixed"
     sig = sa.analyze(answer)
+    type_eval = TYPE_EVAL_INSTRUCTIONS.get(interview_type, TYPE_EVAL_INSTRUCTIONS["mixed"])
+
     prompt = (
-        f"Evaluate this {interview_type} interview answer for a live coaching panel.\n"
-        f"Q: {question}\nA: {answer[:1500]}\nSignals: {sig}\n"
+        f"Evaluate this {interview_type} interview answer.\n"
+        f"Evaluation criteria: {type_eval}\n\n"
+        f"Q: {question}\nA: {answer[:2000]}\nSignals: {sig}\n\n"
         "Reply JSON with exactly these keys: "
         "{\"score\": 0-10, \"strength\": str, \"main_issue\": str, "
         "\"retry_suggested\": true/false, \"retry_instruction\": str, "
@@ -105,7 +254,7 @@ def evaluate_answer(question: str, answer: str, interview_type: str) -> dict:
     )
     try:
         data, resp = service.generate_json(prompt, max_tokens=1100)
-        data["articulation"] = "unavailable"  # enforce honesty even if model improvises
+        data["articulation"] = "unavailable"
         data["pronunciation"] = "unavailable"
         data.setdefault("vocabulary", "—")
         data.setdefault("fillers", f"{sig.get('filler_total', 0)} fillers in transcript")
@@ -144,12 +293,13 @@ def evaluate_answer(question: str, answer: str, interview_type: str) -> dict:
                 "articulation": "unavailable", "pronunciation": "unavailable",
                 "signals": sig, "provider": "offline"}
 
-def final_report(history: list[dict], role: str, jd_text: str = "") -> dict:
+
+def final_report(history: list[dict], role: str, jd_text: str = "",
+                 interview_type: str = "") -> dict:
     scores = [h.get("evaluation", {}).get("score", 0) for h in history if h.get("evaluation")]
     avg = round(sum(scores) / len(scores), 1) if scores else 0.0
     best = max(history, key=lambda h: h.get("evaluation", {}).get("score", 0)) if history else {}
     worst = min(history, key=lambda h: h.get("evaluation", {}).get("score", 10)) if history else {}
-    # Real aggregates across the completed answers — computed, never invented.
     issues = [(h.get("evaluation") or {}).get("main_issue") for h in history]
     issues = [i for i in issues if i]
     recurring = sorted(set(issues), key=issues.count, reverse=True)[:2]
@@ -165,17 +315,21 @@ def final_report(history: list[dict], role: str, jd_text: str = "") -> dict:
                          f"{tot_long} over-long sentences, {tot_words} words total.")
     pronunciation_note = ("Not enough data to evaluate pronunciation/articulation: "
                           "sessions are scored from text transcripts, not analyzed audio.")
+
+    type_eval = TYPE_EVAL_INSTRUCTIONS.get(interview_type, TYPE_EVAL_INSTRUCTIONS["mixed"])
+
     prompt = (
-        f"Write a final {role} interview report. Q&A: "
-        f"{str([(h.get('question'), (h.get('answer') or '')[:400]) for h in history])[:4000]}\n"
-        f"JD excerpt: {jd_text[:1500]}\n"
+        f"Write a final {interview_type} interview report for a {role} position.\n"
+        f"Evaluation criteria: {type_eval}\n\n"
+        f"Q&A:\n{str([(h.get('question'), (h.get('answer') or '')[:500]) for h in history])[:5000]}\n\n"
+        f"JD excerpt: {jd_text[:1500]}\n\n"
         f"Measured aggregates: relevance {relevance_summary} {sentence_patterns} "
-        f"Recurring issues: {recurring}.\n"
+        f"Recurring issues: {recurring}.\n\n"
         "Reply JSON: {\"summary\": str, \"strengths\": [str,str], "
         "\"biggest_weakness\": str, \"communication\": str, \"technical\": str, "
         "\"role_alignment\": str, \"training\": [str,str], "
         "\"top_priority\": str (single most important improvement), "
-        "\"next_practice\": str (one concrete next session, e.g. 'Spontaneous Q&A')}."
+        "\"next_practice\": str (one concrete next session)}."
     )
     try:
         data, resp = service.generate_json(prompt)
@@ -198,7 +352,6 @@ def final_report(history: list[dict], role: str, jd_text: str = "") -> dict:
             "weakest_answer": {"question": worst.get("question"),
                                "issue": (worst.get("evaluation") or {}).get("main_issue")},
             **data,
-            # measured aggregates always win over model text
             "recurring_problems": recurring,
             "relevance_summary": relevance_summary,
             "sentence_patterns": sentence_patterns,
