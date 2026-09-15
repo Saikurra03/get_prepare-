@@ -218,6 +218,114 @@ EVAL_FIELDS = ("score, strength, main_issue, retry_suggested, retry_instruction,
     "dimensions, articulation, pronunciation")
 
 
+COACHING_SYSTEM = (
+    "You are a warm, supportive interview coach. "
+    "Be genuine, specific, and encouraging — never robotic or clinical. "
+    "Base every word on the actual answer the candidate gave. "
+    "Keep the total response under 150 words."
+)
+
+
+def generate_coaching(question: str, answer: str, evaluation: dict, interview_type: str) -> dict:
+    """Generate supportive coaching feedback based on the actual answer and evaluation.
+    Returns: {appreciation, priority, specific_feedback, improvement, next_step}"""
+    sig = evaluation.get("signals", {})
+    score = evaluation.get("score", 5)
+    strengths = evaluation.get("good", [])
+    main_issue = evaluation.get("main_issue", "")
+    better = evaluation.get("better_examples", [])
+    rel = evaluation.get("relevance", {})
+    dims = evaluation.get("dimensions", {})
+    retry_instruction = evaluation.get("retry_instruction", "")
+
+    prompt = (
+        f"You are coaching a candidate after a {interview_type} interview answer.\n\n"
+        f"Question: {question}\n"
+        f"Candidate's answer: {answer[:1500]}\n\n"
+        f"Evaluation data:\n"
+        f"- Score: {score}/10\n"
+        f"- Strengths found: {strengths}\n"
+        f"- Main issue: {main_issue}\n"
+        f"- Relevance: {rel.get('verdict', 'partially')} — {rel.get('note', '')}\n"
+        f"- Dimensions: {dims}\n"
+        f"- Better examples: {[b.get('text', '') for b in better[:2]]}\n"
+        f"- Retry instruction: {retry_instruction}\n\n"
+        "Write a supportive coaching response with exactly these 5 parts:\n\n"
+        "1. APPRECIATION: One genuine sentence about what the candidate did well, "
+        "based on their actual answer. Be specific — reference something they actually said.\n\n"
+        "2. PRIORITY: One sentence on the single most important thing to improve. "
+        "Start with 'Priority:'\n\n"
+        "3. SPECIFIC FEEDBACK: 1-2 sentences explaining the key strengths or problems found. "
+        "Reference the actual answer content.\n\n"
+        "4. IMPROVEMENT: A concrete better way to say it, based on what they actually said. "
+        "If the answer was already strong, suggest a minor polish. "
+        "Format: 'Try: ...' or 'Better: ...'\n\n"
+        "5. NEXT_STEP: One encouraging sentence to keep them motivated for the next question.\n\n"
+        "Reply JSON: {\"appreciation\": str, \"priority\": str, "
+        "\"specific_feedback\": str, \"improvement\": str, \"next_step\": str}"
+    )
+
+    fallback_coaching = _offline_coaching(question, score, main_issue, strengths, better, retry_instruction)
+
+    try:
+        data, resp = service.generate_json(prompt, system=COACHING_SYSTEM, max_tokens=500)
+        return {
+            "appreciation": data.get("appreciation", fallback_coaching["appreciation"]),
+            "priority": data.get("priority", fallback_coaching["priority"]),
+            "specific_feedback": data.get("specific_feedback", fallback_coaching["specific_feedback"]),
+            "improvement": data.get("improvement", fallback_coaching["improvement"]),
+            "next_step": data.get("next_step", fallback_coaching["next_step"]),
+            "provider": resp.provider,
+        }
+    except Exception:
+        return {**fallback_coaching, "provider": "offline"}
+
+
+def _offline_coaching(question: str, score: float, main_issue: str,
+                      strengths: list, better: list, retry_instruction: str) -> dict:
+    """Fallback coaching when AI is unavailable — based on real signals."""
+    appreciation = "Good answer — you addressed the question"
+    if strengths:
+        appreciation += f" and showed strength in {strengths[0].lower()}"
+    appreciation += "."
+    if score >= 7:
+        appreciation = "Strong answer — you communicated clearly and hit the key points."
+    elif score >= 5:
+        appreciation = "Solid attempt — you covered the main idea and showed some structure."
+    else:
+        appreciation = "You gave it a go — with some adjustments, this can become much stronger."
+
+    priority = f"Priority: {main_issue}." if main_issue else "Priority: tighten your answer to lead with the main point."
+
+    specific = f"Score: {score}/10."
+    if strengths:
+        specific += f" What worked: {', '.join(strengths[:2])}."
+    if main_issue:
+        specific += f" Main issue: {main_issue}."
+
+    improvement = ""
+    if better and better[0].get("text"):
+        improvement = f"Try: {better[0]['text']}"
+    elif retry_instruction:
+        improvement = f"Better: {retry_instruction}"
+    else:
+        improvement = "Try: restate your answer in 2 short sentences, starting with the result."
+
+    next_step = "Ready for the next question — keep building on this."
+    if score < 5:
+        next_step = "Don't worry — each answer is a chance to improve. Let's keep going."
+    elif score >= 8:
+        next_step = "Excellent work — let's see if you can keep this level going."
+
+    return {
+        "appreciation": appreciation,
+        "priority": priority,
+        "specific_feedback": specific,
+        "improvement": improvement,
+        "next_step": next_step,
+    }
+
+
 def evaluate_answer(question: str, answer: str, interview_type: str) -> dict:
     """Live per-answer report. Type-specific evaluation. Audio-only
     metrics (articulation/pronunciation) are marked unavailable, never invented."""

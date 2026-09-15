@@ -126,3 +126,20 @@ def test_dashboard_no_fake_data_invariants():
     # trend points link to real sessions
     for p in d.get("trend", []):
         assert p["sid"] in listed and p["overall"] is not None
+
+def test_generate_coaching_returns_5_fields():
+    ev = eng.evaluate_answer("Explain a challenge.", "We had a bug and I fixed it.", "behavioral")
+    coaching = eng.generate_coaching("Explain a challenge.", "We had a bug and I fixed it.", ev, "behavioral")
+    for k in ("appreciation", "priority", "specific_feedback", "improvement", "next_step"):
+        assert k in coaching, f"missing coaching field: {k}"
+        assert isinstance(coaching[k], str) and len(coaching[k]) > 5, f"coaching.{k} too short"
+
+def test_generate_coaching_offline_fallback():
+    """Coaching works even when AI is unavailable."""
+    ev = {"score": 6, "main_issue": "fillers", "good": ["good structure"], "better_examples": [],
+          "signals": {"filler_total": 3}, "relevance": {"verdict": "partially", "note": ""}, "dimensions": {}}
+    coaching = eng.generate_coaching("Tell me about yourself.", "um so I did stuff", ev, "hr")
+    assert coaching["appreciation"]
+    assert "Priority:" in coaching["priority"]
+    assert coaching["improvement"]
+    assert coaching["next_step"]

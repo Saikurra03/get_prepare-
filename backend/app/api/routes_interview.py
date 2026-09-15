@@ -78,14 +78,16 @@ def answer(inp: AnswerIn):
     try:
         itype = s["meta"].get("type", "mixed")
         profile_note = f"focus: {store.get_profile().get('training_focus', '')}"
-        # Evaluate + draft follow-up CONCURRENTLY (halves submit latency vs serial AI calls).
+        # Evaluate + draft follow-up + coaching CONCURRENTLY (all three AI calls run in parallel).
         ev_fut = _executor.submit(eng.evaluate_answer, target["question"], inp.answer, itype)
         nxt_fut = _executor.submit(eng.next_question,
                                   turns + [{"question": target["question"], "answer": inp.answer[:3000]}],
                                   s["meta"].get("context", ""), itype,
                                   s["meta"].get("difficulty", "intermediate"), profile_note)
         ev = ev_fut.result()
+        coaching_fut = _executor.submit(eng.generate_coaching, target["question"], inp.answer, ev, itype)
         nxt = nxt_fut.result()
+        coaching = coaching_fut.result()
         target["answer"] = inp.answer[:3000]
         target["evaluation"] = ev
         _persist_turns(inp.session_id, turns)
@@ -93,7 +95,7 @@ def answer(inp: AnswerIn):
         new_answered = answered_count + 1
         if new_answered < max_q:
             store.append_turn(inp.session_id, {"question": nxt["question"], "answer": None, "bridge": nxt["bridge"]})
-        return {"evaluation": ev, "bridge": nxt["bridge"], "next_question": nxt["question"],
+        return {"evaluation": ev, "coaching": coaching, "bridge": nxt["bridge"], "next_question": nxt["question"],
                 "retry_suggested": ev.get("retry_suggested", False),
                 "retry_instruction": ev.get("retry_instruction", ""),
                 "answered": new_answered, "at_limit": new_answered >= max_q}
@@ -130,13 +132,15 @@ def retry(inp: AnswerIn):
                                   s["meta"].get("context", ""), itype,
                                   s["meta"].get("difficulty", "intermediate"), profile_note)
         ev = ev_fut.result()
+        coaching_fut = _executor.submit(eng.generate_coaching, turns[idx]["question"], inp.answer, ev, itype)
         nxt = nxt_fut.result()
+        coaching = coaching_fut.result()
         turns[idx]["answer"] = inp.answer[:3000]
         turns[idx]["evaluation"] = ev
         _persist_turns(inp.session_id, turns)
         # Retry replaces answer in-place — always append follow-up (retry doesn't change question count).
         store.append_turn(inp.session_id, {"question": nxt["question"], "answer": None, "bridge": nxt["bridge"]})
-        return {"evaluation": ev, "bridge": nxt["bridge"], "next_question": nxt["question"],
+        return {"evaluation": ev, "coaching": coaching, "bridge": nxt["bridge"], "next_question": nxt["question"],
                 "old": old, "new": {"score": ev.get("score")},
                 "retry_suggested": ev.get("retry_suggested", False),
                 "retry_instruction": ev.get("retry_instruction", "")}

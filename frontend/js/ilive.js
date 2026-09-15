@@ -141,18 +141,30 @@ function setSubmitting(on, label) {
   document.getElementById("bStopRecord").disabled = on;
 }
 
-function reportPanel(ev, cmp) {
+function reportPanel(ev, cmp, coaching) {
   const rel = ev.relevance || {};
   const dims = ev.dimensions || {};
   const tech = ev.technical && ev.technical !== "n/a" ? `<div class="small">⚙ Technical: ${esc(ev.technical)}</div>` : "";
   const sents = (ev.sentences || []).map((s) =>
-    `<div class="small">✎ <i>“${esc(s.problem)}”</i><br/>→ ${esc(s.fix)}</div>`).join("");
+    `<div class="small">✎ <i>"${esc(s.problem)}"</i><br/>→ ${esc(s.fix)}</div>`).join("");
   const better = (ev.better_examples || []).map((b) =>
-    `<div class="small">“${esc(b.text)}”<br/><span class="dim">Why stronger: ${esc(b.why)}</span></div>`).join("");
+    `<div class="small">"${esc(b.text)}"<br/><span class="dim">Why stronger: ${esc(b.why)}</span></div>`).join("");
   const replayHtml = _lastBlobUrl
     ? `<button class="ghost" id="bReplay" title="Replay your recorded answer">▶ Replay answer</button>`
     : "";
+
+  // Coaching section — supportive feedback from the AI coach
+  const coachingHtml = coaching ? `
+    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:12px;margin-bottom:12px">
+      ${coaching.appreciation ? `<div class="small" style="color:var(--ok);margin-bottom:6px"><b>💬</b> ${esc(coaching.appreciation)}</div>` : ""}
+      ${coaching.priority ? `<div class="small" style="margin-bottom:6px"><b>🎯</b> ${esc(coaching.priority)}</div>` : ""}
+      ${coaching.specific_feedback ? `<div class="small" style="margin-bottom:6px">${esc(coaching.specific_feedback)}</div>` : ""}
+      ${coaching.improvement ? `<div class="small" style="margin-bottom:6px;color:var(--accent)"><b>✨</b> ${esc(coaching.improvement)}</div>` : ""}
+      ${coaching.next_step ? `<div class="small dim">${esc(coaching.next_step)}</div>` : ""}
+    </div>` : "";
+
   return `<div class="card quiet" style="border:1px solid var(--line-soft)">
+    ${coachingHtml}
     <div class="row"><b>Answer feedback</b> <span class="score">${ev.score ?? "—"}/10</span>${replayHtml}</div>
     ${(ev.good || []).map((g) => `<div class="small">✓ ${esc(g)}</div>`).join("")}
     ${ev.biggest_issue ? `<div class="small">⚠ ${esc(ev.biggest_issue)}</div>` : ""}
@@ -193,7 +205,7 @@ document.getElementById("bSend").onclick = async () => {
     retryMode = false;
     document.getElementById("ansLabel").textContent = "Your answer — speak or type";
     document.getElementById("bridge").textContent = r.bridge || "";
-    document.getElementById("eval").innerHTML = reportPanel(r.evaluation, wasRetry ? r : null)
+    document.getElementById("eval").innerHTML = reportPanel(r.evaluation, wasRetry ? r : null, r.coaching)
       + (r.retry_suggested && !wasRetry ? `<div class="row mt"><button id="bRetry2">🔁 ${esc(r.retry_instruction || "Retry this answer")}</button></div>` : "");
     const rb = document.getElementById("bRetry2");
     if (rb) rb.onclick = () => document.getElementById("bRetryQ").click();
