@@ -1,5 +1,5 @@
 /* Preparation — central workspace. Type auto-selected from URL. Upload/paste real documents. Start → live interview.
-   Documents are scoped to section="interview" so they never appear in other practice areas. */
+   Documents are scoped per interview type so Resume-Based docs don't appear in Topic-Based, etc. */
 const qs = new URLSearchParams(location.search);
 const selType = qs.get("type") || "mixed";
 const TYPES = ["hr", "technical", "project", "behavioral", "resume", "jd", "topic", "mixed", "custom"];
@@ -84,12 +84,18 @@ function updateTip() {
   renderDocSection();
 }
 
-document.getElementById("s_type").onchange = updateTip;
+document.getElementById("s_type").onchange = () => { updateTip(); refreshDocs(); };
 
-const DOC_SECTION = "interview";
+// Each interview type gets its own document scope — resume docs don't leak into topic, etc.
+function getDocSection() {
+  const type = getSelectedType();
+  const meta = TYPE_META[type];
+  if (!meta.needDoc) return "interview_general";
+  return `interview_${type}`;
+}
 
 async function refreshDocs() {
-  try { ALL_DOCS = (await api.docs(DOC_SECTION)).documents || []; } catch {}
+  try { ALL_DOCS = (await api.docs(getDocSection())).documents || []; } catch {}
   renderDocSection();
 }
 
@@ -168,7 +174,7 @@ function renderDocSection() {
     const st = document.getElementById("uploadStatus");
     st.innerHTML = `Uploading <b>${esc(f.name)}</b>…`;
     try {
-      const r = await api.uploadDoc(f, acceptKind || "document", DOC_SECTION);
+      const r = await api.uploadDoc(f, acceptKind || "document", getDocSection());
       if (r.error) { st.innerHTML = `<span style="color:var(--bad)">Failed: ${esc(r.error)}</span>`; return; }
       st.innerHTML = `<span style="color:var(--ok)">✓ Uploaded (${(r.chars / 1000).toFixed(1)}k chars)</span>`;
       await refreshDocs();
@@ -193,7 +199,7 @@ function renderDocSection() {
     if (!text) { st.innerHTML = `<span style="color:var(--warn)">Paste some text first.</span>`; return; }
     st.innerHTML = `Saving…`;
     try {
-      const r = await api.pasteDoc(text, kind, `${KIND_LABEL[kind] || "pasted"}.txt`, DOC_SECTION);
+      const r = await api.pasteDoc(text, kind, `${KIND_LABEL[kind] || "pasted"}.txt`, getDocSection());
       if (r.error) { st.innerHTML = `<span style="color:var(--bad)">Failed: ${esc(r.error)}</span>`; return; }
       st.innerHTML = `<span style="color:var(--ok)">✓ Saved (${(r.chars / 1000).toFixed(1)}k chars)</span>`;
       document.getElementById("pasteText").value = "";
@@ -253,9 +259,21 @@ document.getElementById("bGo").onclick = async () => {
       role: type === "custom" && custom ? `Custom focus: ${custom}. Role: ${role}` : role,
       num_questions: parseInt(document.getElementById("s_n").value, 10),
     });
+    if (r.error) {
+      errEl.textContent = r.error;
+      btn.disabled = false;
+      btn.textContent = "Start interview";
+      return;
+    }
+    if (!r.session_id) {
+      errEl.textContent = "Server did not create a session. Try again.";
+      btn.disabled = false;
+      btn.textContent = "Start interview";
+      return;
+    }
     location.href = `/interview-live?sid=${r.session_id}`;
-  } catch {
-    errEl.textContent = "Could not start — is the server running?";
+  } catch (e) {
+    errEl.textContent = "Could not start — is the server running? " + (e.message || "");
     btn.disabled = false;
     btn.textContent = "Start interview";
   }
