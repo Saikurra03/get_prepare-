@@ -226,13 +226,22 @@ function reportPanel(ev, cmp, coaching, visualObs) {
     if (s.slouch_count > 0) items.push(`🧍 Posture: slouched ${s.slouch_count} time${s.slouch_count > 1 ? "s" : ""} (${s.slouch_total_sec}s total)`);
     if (s.excessive_movement_count > 0) items.push(`🔄 Movement: ${s.excessive_movement_count} excessive head movement${s.excessive_movement_count > 1 ? "s" : ""}`);
     if (s.hands_hidden_count > 0) items.push(`✋ Hands: not visible ${s.hands_hidden_count} time${s.hands_hidden_count > 1 ? "s" : ""}`);
+    if (s.torso_lean_count > 0) items.push(`↔ Body: leaned ${s.torso_lean_count} time${s.torso_lean_count > 1 ? "s" : ""}`);
+    if (s.shoulder_rotation_count > 0) items.push(`🔄 Shoulders: rotated ${s.shoulder_rotation_count} time${s.shoulder_rotation_count > 1 ? "s" : ""}`);
+    // Gesture breakdown
+    if (s.gesture_count > 0 && s.gesture_breakdown) {
+      const gItems = Object.entries(s.gesture_breakdown).map(([k, v]) => `${k.replace("_", " ")}×${v}`).join(", ");
+      items.push(`🤌 Gestures: ${s.gesture_count} detected (${gItems})`);
+    }
     if (items.length === 0) items.push("✓ Good visual presence — stable camera attention and posture");
 
     const coaching_text = visualObs.coaching || "";
+    const content_coaching = visualObs.content_coaching || "";
     visualHtml = `<div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:12px;margin-bottom:12px">
       <div class="small" style="font-weight:600;margin-bottom:6px">📷 Visual Communication</div>
       ${items.map(i => `<div class="small">${esc(i)}</div>`).join("")}
       ${coaching_text ? `<div class="small dim" style="margin-top:6px">${esc(coaching_text)}</div>` : ""}
+      ${content_coaching ? `<div class="small" style="margin-top:6px;color:var(--accent)">💡 ${esc(content_coaching)}</div>` : ""}
     </div>`;
   }
 
@@ -280,7 +289,12 @@ document.getElementById("bSend").onclick = async () => {
       setSubmitting(false); return;
     }
     // Build visual observations for display
-    const visualObs = { summary: visualSummary, coaching: r.visual_coaching || "" };
+    const visualObs = {
+      summary: visualSummary,
+      coaching: r.visual_coaching || "",
+      content_coaching: r.content_coaching || "",
+      gesture_analysis: r.gesture_analysis || {},
+    };
     if (r.answered !== undefined) answered = r.answered;
     else if (!wasRetry) answered++;
     retryMode = false;

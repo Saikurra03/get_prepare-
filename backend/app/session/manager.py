@@ -154,6 +154,11 @@ DEFAULT_PROFILE = {
     "strengths": [], "weaknesses": [], "recurring_patterns": {},
     "sessions_completed": 0, "training_focus": "stronger interview answers",
     "avg_score": 0.0,
+    "visual_patterns": {
+        "gaze_away_total": 0, "slouch_total": 0, "movement_total": 0,
+        "hands_hidden_total": 0, "gesture_total": 0,
+        "best_visual_session": None, "worst_visual_session": None,
+    },
 }
 
 def get_profile() -> dict:
@@ -170,7 +175,6 @@ def update_profile_from_session(session: dict) -> dict:
     profile["recurring_patterns"] = issues
     if issues:
         top = max(issues, key=issues.get)
-        # progress: stop repeating same basic advice once count is high -> move focus
         profile["training_focus"] = {
             "fillers": "eliminate fillers; practice 20-second answers",
             "weak_opening": "stronger openings: main point in first 10 seconds",
@@ -184,5 +188,29 @@ def update_profile_from_session(session: dict) -> dict:
         prev = profile.get("avg_score", 0.0)
         n = profile["sessions_completed"]
         profile["avg_score"] = round((prev * (n - 1) + float(rep["overall"])) / n, 2)
+    # Track visual patterns across sessions
+    vp = profile.get("visual_patterns", DEFAULT_PROFILE["visual_patterns"])
+    vc = rep.get("visual_communication", {})
+    if vc:
+        ca = vc.get("camera_attention", {})
+        po = vc.get("posture", {})
+        mv = vc.get("movement", {})
+        ge = vc.get("gestures", {})
+        vp["gaze_away_total"] = vp.get("gaze_away_total", 0) + ca.get("gaze_away_count", 0)
+        vp["slouch_total"] = vp.get("slouch_total", 0) + po.get("slouch_count", 0)
+        vp["movement_total"] = vp.get("movement_total", 0) + mv.get("excessive_count", 0)
+        vp["hands_hidden_total"] = vp.get("hands_hidden_total", 0) + ge.get("hands_hidden_count", 0)
+        vp["gesture_total"] = vp.get("gesture_total", 0) + ge.get("gesture_count", 0)
+        # Track best/worst visual sessions
+        visual_score = (5 - min(ca.get("gaze_away_count", 0), 5)
+                        - min(po.get("slouch_count", 0), 5)
+                        - min(mv.get("excessive_count", 0), 5))
+        if vp.get("best_visual_session") is None or visual_score > vp.get("best_visual_score", 0):
+            vp["best_visual_session"] = session.get("id", "")
+            vp["best_visual_score"] = visual_score
+        if vp.get("worst_visual_session") is None or visual_score < vp.get("worst_visual_score", 10):
+            vp["worst_visual_session"] = session.get("id", "")
+            vp["worst_visual_score"] = visual_score
+    profile["visual_patterns"] = vp
     _save("profile.json", profile)
     return profile

@@ -126,15 +126,79 @@ function createVisualSampler() {
     if (!v.handLandmarker || !v.videoEl) return null;
     try {
       const results = v.handLandmarker.detectForVideo(v.videoEl, performance.now());
-      if (!results.landmarks || !results.landmarks.length) return { count: 0, hands: [] };
+      if (!results.landmarks || !results.landmarks.length) return { count: 0, hands: [], gestures: [] };
       const hands = results.landmarks.map((hand) => ({
         wrist: { x: hand[0].x, y: hand[0].y },
         indexTip: { x: hand[8].x, y: hand[8].y },
         thumbTip: { x: hand[4].x, y: hand[4].y },
+        middleTip: { x: hand[12].x, y: hand[12].y },
+        ringTip: { x: hand[16].x, y: hand[16].y },
+        pinkyTip: { x: hand[20].x, y: hand[20].y },
+        indexMcp: { x: hand[5].x, y: hand[5].y },
+        middleMcp: { x: hand[9].x, y: hand[9].y },
+        ringMcp: { x: hand[13].x, y: hand[13].y },
+        pinkyMcp: { x: hand[17].x, y: hand[17].y },
         palmCenter: { x: (hand[0].x + hand[9].x) / 2, y: (hand[0].y + hand[9].y) / 2 },
+        palmSize: Math.abs(hand[0].y - hand[9].y),
       }));
-      return { count: hands.length, hands };
-    } catch { return { count: 0, hands: [] }; }
+      // Detect gestures per hand
+      const gestures = hands.map((h, idx) => detectGesture(h, idx));
+      return { count: hands.length, hands, gestures };
+    } catch { return { count: 0, hands: [], gestures: [] }; }
+  }
+
+  /* ---- Gesture detection from hand landmarks ---- */
+  function detectGesture(hand, handIdx) {
+    const tips = [hand.indexTip, hand.middleTip, hand.ringTip, hand.pinkyTip, hand.thumbTip];
+    const mcps = [hand.indexMcp, hand.middleMcp, hand.ringMcp, hand.pinkyMcp];
+    const wrist = hand.wrist;
+
+    // Finger extended: tip is further from wrist than mcp (y-axis, inverted in screen coords)
+    const indexUp = hand.indexTip.y < hand.indexMcp.y;
+    const middleUp = hand.middleTip.y < hand.middleMcp.y;
+    const ringUp = hand.ringTip.y < hand.ringMcp.y;
+    const pinkyUp = hand.pinkyTip.y < hand.pinkyMcp.y;
+    const thumbOut = Math.abs(hand.thumbTip.x - wrist.x) > 0.08;
+
+    const extendedCount = [indexUp, middleUp, ringUp, pinkyUp].filter(Boolean).length;
+
+    // Thumbs up: thumb extended, all fingers curled
+    if (thumbOut && !indexUp && !middleUp && !ringUp && !pinkyUp && hand.thumbTip.y < wrist.y) {
+      return { type: "thumbs_up", confidence: 0.8, hand: handIdx };
+    }
+
+    // Thumbs down: thumb down, fingers curled
+    if (thumbOut && !indexUp && !middleUp && !ringUp && !pinkyUp && hand.thumbTip.y > wrist.y) {
+      return { type: "thumbs_down", confidence: 0.7, hand: handIdx };
+    }
+
+    // Pointing: only index finger extended
+    if (indexUp && !middleUp && !ringUp && !pinkyUp) {
+      return { type: "pointing", confidence: 0.8, hand: handIdx };
+    }
+
+    // Open palm: all fingers extended
+    if (indexUp && middleUp && ringUp && pinkyUp) {
+      return { type: "open_palm", confidence: 0.85, hand: handIdx };
+    }
+
+    // Peace/victory: index + middle extended, others curled
+    if (indexUp && middleUp && !ringUp && !pinkyUp) {
+      return { type: "peace", confidence: 0.75, hand: handIdx };
+    }
+
+    // Counting: varies by number of extended fingers
+    if (extendedCount >= 1 && extendedCount <= 4 && !thumbOut) {
+      return { type: "counting", count: extendedCount, confidence: 0.6, hand: handIdx };
+    }
+
+    // Fist: no fingers extended
+    if (extendedCount === 0 && !thumbOut) {
+      return { type: "fist", confidence: 0.7, hand: handIdx };
+    }
+
+    // Hands together (both hands close): computed externally
+    return { type: "neutral", confidence: 0.5, hand: handIdx };
   }
 
   /* ---- Observation computation from landmarks ---- */
@@ -144,11 +208,13 @@ function createVisualSampler() {
     // --- Gaze direction (from face landmarks) ---
     if (face) {
       const noseX = face.faceCenterX;
-      if (noseX < 0.35) obs.gaze = "right";       // facing right of camera (user's left)
-      else if (noseX > 0.65) obs.gaze = "left";    // facing left of camera (user's right)
-      else obs.gaze = "center";                     // looking toward camera
+      if (noseX < 0.35) obs.gaze = "right";
+      else if (noseX > 0.65) obs.gaze = "left";
+      else obs.gaze = "center";
       obs.faceVisible = face.faceVisible;
       obs.faceSize = face.faceSize;
+      // Head tilt: compare nose Y to face center
+      obs.headTilt = Math.abs(face.nose.y - face.faceCenterY) > 0.03 ? "tilted" : "level";
     }
 
     // --- Head movement (compare with previous) ---
@@ -160,22 +226,48 @@ function createVisualSampler() {
       obs.headMoving = obs.headMovement > 0.02;
     }
 
-    // --- Posture (from pose landmarks) ---
+    // --- Posture + enhanced body analysis (from pose landmarks) ---
     if (pose) {
       obs.shoulderLevel = pose.shoulderLevel;
       obs.shoulderLevelOk = pose.shoulderLevel < 0.05;
-      // Torso lean: compare shoulder center Y to hip center Y
       const shoulderCenterY = (pose.leftShoulder.y + pose.rightShoulder.y) / 2;
       const hipCenterY = (pose.leftHip.y + pose.rightHip.y) / 2;
       obs.torsoLength = hipCenterY - shoulderCenterY;
       obs.posture = obs.torsoLength > 0.3 ? "upright" : obs.torsoLength > 0.2 ? "slight_slouch" : "slouching";
       obs.torsoVisible = pose.torsoVisible;
+      // Torso lean: compare shoulder center X to hip center X
+      const shoulderCenterX = (pose.leftShoulder.x + pose.rightShoulder.x) / 2;
+      const hipCenterX = (pose.leftHip.x + pose.rightHip.x) / 2;
+      const leanX = shoulderCenterX - hipCenterX;
+      obs.torsoLean = Math.abs(leanX) > 0.04 ? (leanX > 0 ? "lean_right" : "lean_left") : "centered";
+      // Shoulder rotation: compare left/right shoulder Y difference over time
+      if (prevSnapshot?.pose) {
+        const prevShoulderDiff = prevSnapshot.pose.leftShoulder.y - prevSnapshot.pose.rightShoulder.y;
+        const currShoulderDiff = pose.leftShoulder.y - pose.rightShoulder.y;
+        obs.shoulderRotation = Math.abs(currShoulderDiff - prevShoulderDiff) > 0.02;
+      }
     }
 
-    // --- Hands visibility ---
+    // --- Hands + gesture analysis ---
     if (hands) {
       obs.handsVisible = hands.count;
       obs.handsInFrame = hands.count > 0;
+      obs.gestures = hands.gestures || [];
+      // Detect双手 together (both hands close to each other)
+      if (hands.count === 2) {
+        const d = Math.hypot(
+          hands.hands[0].palmCenter.x - hands.hands[1].palmCenter.x,
+          hands.hands[0].palmCenter.y - hands.hands[1].palmCenter.y
+        );
+        obs.handsTogether = d < 0.12;
+      } else {
+        obs.handsTogether = false;
+      }
+      // Dominant gesture across visible hands
+      const meaningful = (hands.gestures || []).filter(g => g.type !== "neutral");
+      if (meaningful.length > 0) {
+        obs.dominantGesture = meaningful[0];
+      }
     }
 
     return obs;
@@ -243,6 +335,41 @@ function createVisualSampler() {
     if (obs.shoulderLevelOk === false && obs.shoulderLevel > 0.05) {
       events.push({ time, type: "uneven_shoulders", duration: 0,
         detail: "Shoulders appear uneven" });
+    }
+
+    // Torso lean (new)
+    if (obs.torsoLean && obs.torsoLean !== "centered") {
+      if (v._lastLean !== obs.torsoLean) {
+        v._lastLean = obs.torsoLean;
+        events.push({ time, type: "torso_lean", duration: 0,
+          detail: `Torso leaning ${obs.torsoLean.replace("lean_", "")}` });
+      }
+    } else {
+      v._lastLean = null;
+    }
+
+    // Shoulder rotation (new)
+    if (obs.shoulderRotation) {
+      events.push({ time, type: "shoulder_rotation", duration: 0,
+        detail: "Shoulders shifted rotationally" });
+    }
+
+    // Gesture tracking (new) — log meaningful gestures
+    if (obs.dominantGesture && obs.dominantGesture.type !== "neutral") {
+      const g = obs.dominantGesture;
+      // Only log if different from last gesture (avoid spam)
+      if (v._lastGestureType !== g.type) {
+        v._lastGestureType = g.type;
+        events.push({ time, type: "gesture", duration: 0,
+          detail: `Gesture: ${g.type.replace("_", " ")}`,
+          gesture: g.type, gesture_confidence: g.confidence });
+      }
+    }
+
+    // Hands together (new)
+    if (obs.handsTogether && !prevObs?.handsTogether) {
+      events.push({ time, type: "hands_together", duration: 0,
+        detail: "Hands came together" });
     }
 
     return events;
@@ -337,6 +464,8 @@ function createVisualSampler() {
     v._lastGaze = null;
     v._lastPosture = null;
     v._lastHands = null;
+    v._lastLean = null;
+    v._lastGestureType = null;
 
     let prevObs = null;
     v.sampleInterval = setInterval(() => {
@@ -386,8 +515,18 @@ function createVisualSampler() {
     const slouching = events.filter(e => e.type === "slouching");
     const movement = events.filter(e => e.type === "excessive_movement");
     const handsHidden = events.filter(e => e.type === "hands_hidden");
+    const gestures = events.filter(e => e.type === "gesture");
+    const torsoLeans = events.filter(e => e.type === "torso_lean");
+    const shoulderRots = events.filter(e => e.type === "shoulder_rotation");
+    const handsTogether = events.filter(e => e.type === "hands_together");
     const totalGazeAway = gazeAway.reduce((s, e) => s + (e.duration || 0), 0);
     const totalSlouch = slouching.reduce((s, e) => s + (e.duration || 0), 0);
+    // Gesture breakdown
+    const gestureCounts = {};
+    gestures.forEach(g => {
+      const t = g.gesture || "unknown";
+      gestureCounts[t] = (gestureCounts[t] || 0) + 1;
+    });
     return {
       gaze_away_count: gazeAway.length,
       gaze_away_total_sec: Math.round(totalGazeAway),
@@ -395,6 +534,11 @@ function createVisualSampler() {
       slouch_total_sec: Math.round(totalSlouch),
       excessive_movement_count: movement.length,
       hands_hidden_count: handsHidden.length,
+      gesture_count: gestures.length,
+      gesture_breakdown: gestureCounts,
+      torso_lean_count: torsoLeans.length,
+      shoulder_rotation_count: shoulderRots.length,
+      hands_together_count: handsTogether.length,
       total_snapshots: v.snapshots.length,
       events: events,
     };

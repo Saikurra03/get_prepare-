@@ -109,6 +109,8 @@ def answer(inp: AnswerIn):
             store.append_turn(inp.session_id, {"question": nxt["question"], "answer": None, "bridge": nxt["bridge"]})
         return {"evaluation": ev, "coaching": coaching, "model_answer": model.get("model_answer", ""),
                 "visual_coaching": visual_result.get("coaching", ""),
+                "content_coaching": visual_result.get("content_coaching", ""),
+                "gesture_analysis": visual_result.get("gesture_analysis", {}),
                 "visual_observations": visual_result.get("observations", []),
                 "bridge": nxt["bridge"], "next_question": nxt["question"],
                 "retry_suggested": ev.get("retry_suggested", False),

@@ -26,8 +26,22 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
     if (vc.movement) {
       items.push(`<div><b>Movement:</b> ${vc.movement.excessive_count} excessive movement${vc.movement.excessive_count !== 1 ? "s" : ""} — <span style="color:${vc.movement.rating === "good" ? "var(--ok)" : "var(--warn)"}">${vc.movement.rating}</span></div>`);
     }
+    if (vc.body_alignment) {
+      const ba = vc.body_alignment;
+      const baItems = [];
+      if (ba.torso_lean_count > 0) baItems.push(`${ba.torso_lean_count} lean${ba.torso_lean_count !== 1 ? "s" : ""}`);
+      if (ba.shoulder_rotation_count > 0) baItems.push(`${ba.shoulder_rotation_count} rotation${ba.shoulder_rotation_count !== 1 ? "s" : ""}`);
+      if (baItems.length > 0) {
+        items.push(`<div><b>Body Alignment:</b> ${baItems.join(", ")} — <span style="color:${ba.rating === "good" ? "var(--ok)" : "var(--warn)"}">${ba.rating}</span></div>`);
+      }
+    }
     if (vc.gestures) {
-      items.push(`<div><b>Gestures:</b> ${vc.gestures.hands_hidden_count} time${vc.gestures.hands_hidden_count !== 1 ? "s" : ""} hands hidden — <span style="color:${vc.gestures.rating === "good" ? "var(--ok)" : "var(--warn)"}">${vc.gestures.rating}</span></div>`);
+      const ge = vc.gestures;
+      items.push(`<div><b>Gestures:</b> ${ge.gesture_count} used, ${ge.hands_hidden_count} time${ge.hands_hidden_count !== 1 ? "s" : ""} hands hidden — <span style="color:${ge.rating === "good" ? "var(--ok)" : "var(--warn)"}">${ge.rating}</span></div>`);
+      if (ge.gesture_breakdown && Object.keys(ge.gesture_breakdown).length > 0) {
+        const gItems = Object.entries(ge.gesture_breakdown).map(([k, v]) => `${k.replace("_", " ")}×${v}`).join(", ");
+        items.push(`<div style="padding-left:12px" class="dim">Gesture types: ${gItems}</div>`);
+      }
     }
     if (vc.strengths && vc.strengths.length) {
       items.push(`<div style="color:var(--ok);margin-top:4px">✓ ${esc(vc.strengths.join(" · "))}</div>`);

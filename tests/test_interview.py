@@ -198,3 +198,59 @@ def test_visual_summary_empty():
     """Visual summary with no events returns empty dict."""
     s = vis.visual_summary_for_report([], "beginner")
     assert s == {}
+
+def test_visual_analysis_gesture_events():
+    """Visual analysis detects and analyzes gesture events."""
+    events = [
+        {"type": "gesture", "duration": 0, "detail": "Gesture: pointing", "gesture": "pointing", "gesture_confidence": 0.8},
+        {"type": "gesture", "duration": 0, "detail": "Gesture: open palm", "gesture": "open_palm", "gesture_confidence": 0.85},
+        {"type": "gesture", "duration": 0, "detail": "Gesture: counting", "gesture": "counting", "gesture_confidence": 0.6},
+    ]
+    r = vis.analyze_visuals(events, "q", "a", "hr", "intermediate")
+    assert r["gesture_analysis"]["variety_score"] > 0
+    assert r["gesture_analysis"]["total"] == 3
+    assert "pointing" in r["gesture_analysis"]["breakdown"]
+
+def test_visual_analysis_content_aware_coaching():
+    """Content-aware coaching suggests gestures for answer keywords."""
+    answer = "First, I want to say that the example I gave shows my team collaboration skills."
+    events = [{"type": "gesture", "duration": 0, "detail": "Gesture: neutral", "gesture": "neutral", "gesture_confidence": 0.5}]
+    r = vis.analyze_visuals(events, "q", answer, "hr", "beginner")
+    assert r["content_coaching"] != ""  # Should have content-aware suggestion
+
+def test_visual_analysis_torso_lean():
+    """Visual analysis detects torso lean events."""
+    events = [
+        {"type": "torso_lean", "duration": 0, "detail": "Torso leaning left"},
+        {"type": "torso_lean", "duration": 0, "detail": "Torso leaning right"},
+        {"type": "torso_lean", "duration": 0, "detail": "Torso leaning left"},
+    ]
+    r = vis.analyze_visuals(events, "q", "a", "hr", "advanced")
+    lean_obs = [o for o in r["observations"] if o["type"] == "torso_lean"]
+    assert len(lean_obs) == 3
+    assert r["score_impact"] < 0
+
+def test_visual_summary_body_alignment():
+    """Visual summary includes body alignment data."""
+    all_events = [
+        {"events": [
+            {"type": "torso_lean", "duration": 0},
+            {"type": "shoulder_rotation", "duration": 0},
+            {"type": "gesture", "duration": 0, "gesture": "pointing"},
+        ]},
+    ]
+    s = vis.visual_summary_for_report(all_events, "intermediate")
+    assert "body_alignment" in s
+    assert s["body_alignment"]["torso_lean_count"] == 1
+    assert s["body_alignment"]["shoulder_rotation_count"] == 1
+    assert s["gestures"]["gesture_count"] == 1
+
+def test_visual_analysis_low_gesture_variety():
+    """Visual analysis penalizes low gesture variety."""
+    events = [
+        {"type": "gesture", "duration": 0, "detail": "Gesture: fist", "gesture": "fist", "gesture_confidence": 0.7},
+        {"type": "gesture", "duration": 0, "detail": "Gesture: fist", "gesture": "fist", "gesture_confidence": 0.7},
+    ]
+    r = vis.analyze_visuals(events, "q", "a", "hr", "intermediate")
+    assert r["gesture_analysis"]["variety_score"] < 0.5
+    assert r["gesture_analysis"]["coaching"] != ""
