@@ -34,15 +34,12 @@ def _save(name: str, obj) -> None:
 _SESSION_PREFIX = "s_"
 
 def _encode_session(session: dict) -> str:
-    """Encode session data into the session ID for disk-independent recovery."""
+    """Encode minimal session identity into the session ID for disk-independent recovery.
+    Only stores id + kind + created — NOT turns, meta, or report (too large for URLs)."""
     compact = {
         "id": session["id"],
         "kind": session.get("kind", "interview"),
         "created": session.get("created", 0),
-        "meta": session.get("meta", {}),
-        "turns": session.get("turns", []),
-        "status": session.get("status", "active"),
-        "report": session.get("report"),
     }
     raw = json.dumps(compact, separators=(",", ":"))
     encoded = base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
@@ -72,19 +69,21 @@ def create_session(kind: str, meta: dict | None = None) -> dict:
     return {**s, "id": _encode_session(s)}
 
 def get_session(sid: str) -> dict | None:
-    # First try: load from file
-    for s in _load("sessions.json", []):
-        if s["id"] == sid:
-            return s
-    # Fallback: decode from session ID (handles ephemeral disk wipe)
+    # Decode raw ID from encoded session ID
     decoded = _decode_session(sid)
+    raw_id = decoded["id"] if decoded and decoded.get("id") else sid
+    # First try: load from file using raw ID
+    for s in _load("sessions.json", []):
+        if s["id"] == raw_id:
+            return s
+    # Fallback: file lost (Render ephemeral disk). Reconstruct minimal session from encoded data.
     if decoded and decoded.get("id"):
-        # Try to find in file with the raw ID
-        for s in _load("sessions.json", []):
-            if s["id"] == decoded["id"]:
-                return s
-        # File lost — reconstruct from encoded data
-        return decoded
+        return {
+            "id": decoded["id"],
+            "kind": decoded.get("kind", "interview"),
+            "created": decoded.get("created", 0),
+            "meta": {}, "turns": [], "status": "active",
+        }
     return None
 
 def _save_session(session: dict) -> None:
