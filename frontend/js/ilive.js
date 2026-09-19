@@ -3,11 +3,14 @@ const sid = new URLSearchParams(location.search).get("sid");
 if (!sid) location.href = "/interview";
 const page = buildShell("Interview", "BERREADY / Interview / Live");
 const media = createMedia();
+const visual = createVisualSampler();
 let answered = 0, t0 = Date.now(), tick = null, submitting = false, retryMode = false;
 let currentRequestId = 0;
 let NQ = 5;
-let _lastBlobUrl = null;   // blob URL of the most recent recording for replay
-let _lastAudioEl = null;   // currently playing Audio element
+let _lastBlobUrl = null;
+let _lastAudioEl = null;
+let _visualReady = false;
+let _cameraChecked = false;
 
 page.innerHTML = `
   <div class="card mb"><div class="row"><div><div class="small dim" id="ivMeta">Preparing…</div>
@@ -45,6 +48,41 @@ if (prefs.get("cam", false)) toggleCam(); else document.getElementById("bCam").o
 async function toggleCam() {
   const on = await media.camera(document.getElementById("v"), !media.camOn, () => alert("Camera unavailable — continuing audio-only."));
   document.getElementById("dCam").classList.toggle("on", on);
+  // Run camera check after camera turns on
+  if (on && !_cameraChecked) {
+    _cameraChecked = true;
+    runCameraCheck();
+  }
+}
+
+/* --- Camera Readiness Check --- */
+async function runCameraCheck() {
+  const statusEl = document.getElementById("sttStatus");
+  statusEl.innerHTML = `<span class="small mut">🔍 Checking camera readiness…</span>`;
+  // Load MediaPipe in background
+  const loaded = await visual.loadVision();
+  if (!loaded) {
+    statusEl.innerHTML = `<span class="small mut">⚠ Visual analysis unavailable — proceeding without it.</span>`;
+    return;
+  }
+  // Run check on the camera feed
+  const videoEl = document.getElementById("v");
+  const result = await visual.cameraCheck(videoEl);
+  _visualReady = result.ready;
+  if (result.issues.length === 0) {
+    statusEl.innerHTML = `<span class="small mut" style="color:var(--ok)">✓ Camera ready — visual coaching enabled.</span>`;
+  } else {
+    const msgs = result.recommendations.map(r => `<div class="small">• ${esc(r)}</div>`).join("");
+    statusEl.innerHTML = `<div style="padding:8px;background:var(--bg2);border-radius:6px;margin-top:4px">
+      <div class="small" style="color:var(--warn);font-weight:600">📷 Camera suggestions:</div>
+      ${msgs}
+      <div class="small dim" style="margin-top:4px">Interview will continue — these are suggestions only.</div></div>`;
+    _visualReady = true; // still usable
+  }
+  // Start visual sampling if camera is on
+  if (media.camOn) {
+    visual.startSampling(videoEl, 3000);
+  }
 }
 document.getElementById("bMic").onclick = () => {
   const on = media.toggleMic(); document.getElementById("dMic").classList.toggle("on", on);
@@ -157,7 +195,7 @@ function setSubmitting(on, label) {
   document.getElementById("bStopRecord").disabled = on;
 }
 
-function reportPanel(ev, cmp, coaching) {
+function reportPanel(ev, cmp, coaching, visualObs) {
   const rel = ev.relevance || {};
   const dims = ev.dimensions || {};
   const tech = ev.technical && ev.technical !== "n/a" ? `<div class="small">⚙ Technical: ${esc(ev.technical)}</div>` : "";
@@ -169,7 +207,7 @@ function reportPanel(ev, cmp, coaching) {
     ? `<button class="ghost" id="bReplay" title="Replay your recorded answer">▶ Replay answer</button>`
     : "";
 
-  // Coaching section — supportive feedback from the AI coach
+  // Coaching section
   const coachingHtml = coaching ? `
     <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:12px;margin-bottom:12px">
       ${coaching.appreciation ? `<div class="small" style="color:var(--ok);margin-bottom:6px"><b>💬</b> ${esc(coaching.appreciation)}</div>` : ""}
@@ -179,8 +217,28 @@ function reportPanel(ev, cmp, coaching) {
       ${coaching.next_step ? `<div class="small dim">${esc(coaching.next_step)}</div>` : ""}
     </div>` : "";
 
+  // Visual observations section
+  let visualHtml = "";
+  if (visualObs && visualObs.summary) {
+    const s = visualObs.summary;
+    const items = [];
+    if (s.gaze_away_count > 0) items.push(`👁 Camera attention: looked away ${s.gaze_away_count} time${s.gaze_away_count > 1 ? "s" : ""} (${s.gaze_away_total_sec}s total)`);
+    if (s.slouch_count > 0) items.push(`🧍 Posture: slouched ${s.slouch_count} time${s.slouch_count > 1 ? "s" : ""} (${s.slouch_total_sec}s total)`);
+    if (s.excessive_movement_count > 0) items.push(`🔄 Movement: ${s.excessive_movement_count} excessive head movement${s.excessive_movement_count > 1 ? "s" : ""}`);
+    if (s.hands_hidden_count > 0) items.push(`✋ Hands: not visible ${s.hands_hidden_count} time${s.hands_hidden_count > 1 ? "s" : ""}`);
+    if (items.length === 0) items.push("✓ Good visual presence — stable camera attention and posture");
+
+    const coaching_text = visualObs.coaching || "";
+    visualHtml = `<div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:12px;margin-bottom:12px">
+      <div class="small" style="font-weight:600;margin-bottom:6px">📷 Visual Communication</div>
+      ${items.map(i => `<div class="small">${esc(i)}</div>`).join("")}
+      ${coaching_text ? `<div class="small dim" style="margin-top:6px">${esc(coaching_text)}</div>` : ""}
+    </div>`;
+  }
+
   return `<div class="card quiet" style="border:1px solid var(--line-soft)">
     ${coachingHtml}
+    ${visualHtml}
     <div class="row"><b>Answer feedback</b> <span class="score">${ev.score ?? "—"}/10</span>${replayHtml}</div>
     ${(ev.good || []).map((g) => `<div class="small">✓ ${esc(g)}</div>`).join("")}
     ${ev.biggest_issue ? `<div class="small">⚠ ${esc(ev.biggest_issue)}</div>` : ""}
@@ -199,29 +257,36 @@ function reportPanel(ev, cmp, coaching) {
 
 document.getElementById("bSend").onclick = async () => {
   if (submitting) return;
-  currentRequestId = Date.now(); // Unique ID for deduplication
+  currentRequestId = Date.now();
   const myRequestId = currentRequestId;
   const a = document.getElementById("tx").textContent.trim();
   if (!a || a === "…") { document.getElementById("eval").innerHTML = `<span class="small" style="color:var(--warn)">Empty — answer not heard. Check microphone.</span>`; return; }
   media.stopListen(); document.body.classList.remove("speaking");
+  // Stop visual sampling and capture summary for this answer
+  visual.stopSampling();
+  const visualSummary = visual.getSummary();
+  visual.clearEvents();
   setSubmitting(true, "Analyzing answer…");
   document.getElementById("eval").innerHTML = `<span class="small mut">Analyzing your answer…</span>`;
   const wasRetry = retryMode;
   try {
+    // Send answer + visual data together
+    const payload = { session_id: sid, answer: a, visual: visualSummary };
     const r = await (wasRetry ? api.retryInterview(sid, a) : api.answerInterview(sid, a));
-    if (myRequestId !== currentRequestId) return; // Another request superseded this one
+    if (myRequestId !== currentRequestId) return;
     if (r.error) {
       if (r.code === "in_flight") { document.getElementById("eval").innerHTML = `<span class="small" style="color:var(--warn)">Answer already being processed — please wait.</span>`; }
       else { document.getElementById("eval").innerHTML = `<span class="small" style="color:var(--warn)">${esc(r.error)}</span>`; }
       setSubmitting(false); return;
     }
-    // Use backend's authoritative answered count (handles retries correctly).
+    // Build visual observations for display
+    const visualObs = { summary: visualSummary, coaching: r.visual_coaching || "" };
     if (r.answered !== undefined) answered = r.answered;
     else if (!wasRetry) answered++;
     retryMode = false;
     document.getElementById("ansLabel").textContent = "Your answer — speak or type";
     document.getElementById("bridge").textContent = r.bridge || "";
-    document.getElementById("eval").innerHTML = reportPanel(r.evaluation, wasRetry ? r : null, r.coaching)
+    document.getElementById("eval").innerHTML = reportPanel(r.evaluation, wasRetry ? r : null, r.coaching, visualObs)
       + (r.retry_suggested && !wasRetry ? `<div class="row mt"><button id="bRetry2">🔁 ${esc(r.retry_instruction || "Retry this answer")}</button></div>` : "");
     const rb = document.getElementById("bRetry2");
     if (rb) rb.onclick = () => document.getElementById("bRetryQ").click();
@@ -254,6 +319,10 @@ document.getElementById("bSend").onclick = async () => {
     if (r.at_limit || (!wasRetry && answered >= NQ)) { endInterview(); return; }
     document.getElementById("q").textContent = r.next_question;
     document.getElementById("sttStatus").innerHTML = "";
+    // Restart visual sampling for the next answer
+    if (media.camOn) {
+      visual.startSampling(document.getElementById("v"), 3000);
+    }
     setSubmitting(false);
   } catch { document.getElementById("eval").innerHTML = `<span class="small" style="color:var(--warn)">Server unreachable — your answer was not sent. Try once more.</span>`; setSubmitting(false); }
 };

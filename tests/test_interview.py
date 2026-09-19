@@ -2,6 +2,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from backend.app.engines import interview as eng
+from backend.app.engines import visual_analysis as vis
 from backend.app.documents import context_builder
 
 def test_plan_offline_has_questions():
@@ -154,3 +155,46 @@ def test_generate_model_answer_offline_fallback():
     ma = eng.generate_model_answer("Tell me about yourself.", "I am a developer", "hr", "")
     assert ma["model_answer"]
     assert len(ma["model_answer"]) > 30
+
+def test_visual_analysis_empty_events():
+    """Visual analysis with no events returns empty results."""
+    r = vis.analyze_visuals([], "q", "a", "hr", "beginner")
+    assert r["observations"] == []
+    assert r["coaching"] == ""
+    assert r["score_impact"] == 0.0
+
+def test_visual_analysis_gaze_away():
+    """Visual analysis detects gaze-away events."""
+    events = [{"type": "gaze_away", "duration": 5, "detail": "Looked away"}]
+    r = vis.analyze_visuals(events, "q", "a", "hr", "beginner")
+    assert len(r["observations"]) == 1
+    assert r["observations"][0]["type"] == "gaze_away"
+    assert r["coaching"] != ""
+
+def test_visual_analysis_multiple_event_types():
+    """Visual analysis handles multiple event types."""
+    events = [
+        {"type": "gaze_away", "duration": 3, "detail": "Looked away"},
+        {"type": "slouching", "duration": 8, "detail": "Slouched"},
+        {"type": "excessive_movement", "duration": 0, "detail": "Moved head"},
+        {"type": "hands_hidden", "duration": 0, "detail": "Hands not visible"},
+    ]
+    r = vis.analyze_visuals(events, "q", "a", "hr", "intermediate")
+    assert len(r["observations"]) == 4
+    assert r["score_impact"] < 0  # Should have some penalty
+
+def test_visual_summary_for_report():
+    """Visual summary aggregates across multiple answers."""
+    all_events = [
+        {"events": [{"type": "gaze_away", "duration": 3}, {"type": "slouching", "duration": 5}]},
+        {"events": [{"type": "gaze_away", "duration": 4}, {"type": "excessive_movement", "duration": 0}]},
+    ]
+    s = vis.visual_summary_for_report(all_events, "intermediate")
+    assert s["camera_attention"]["gaze_away_count"] == 2
+    assert s["posture"]["slouch_count"] == 1
+    assert s["movement"]["excessive_count"] == 1
+
+def test_visual_summary_empty():
+    """Visual summary with no events returns empty dict."""
+    s = vis.visual_summary_for_report([], "beginner")
+    assert s == {}

@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import APIRouter
 from pydantic import BaseModel
 from backend.app.engines import interview as eng
+from backend.app.engines import visual_analysis as vis
 from backend.app.documents import context_builder
 from backend.app.session import manager as store
 
@@ -27,6 +28,7 @@ class PlanIn(BaseModel):
 class AnswerIn(BaseModel):
     session_id: str
     answer: str
+    visual: dict | None = None  # Visual events from browser sampler
 
 
 @router.post("/plan")
@@ -91,14 +93,23 @@ def answer(inp: AnswerIn):
         nxt = nxt_fut.result()
         coaching = coaching_fut.result()
         model = ma_fut.result()
+        # Process visual data from browser sampler
+        visual_events = (inp.visual or {}).get("events", [])
+        visual_result = vis.analyze_visuals(visual_events, target["question"], inp.answer, itype, diff)
+        # Apply visual score impact to evaluation
+        if visual_result.get("score_impact", 0) != 0:
+            ev["score"] = max(1.0, min(10.0, ev.get("score", 5) + visual_result["score_impact"]))
         target["answer"] = inp.answer[:3000]
         target["evaluation"] = ev
+        target["visual_events"] = visual_events
         _persist_turns(inp.session_id, turns)
         # Only append follow-up if NOT at question limit.
         new_answered = answered_count + 1
         if new_answered < max_q:
             store.append_turn(inp.session_id, {"question": nxt["question"], "answer": None, "bridge": nxt["bridge"]})
         return {"evaluation": ev, "coaching": coaching, "model_answer": model.get("model_answer", ""),
+                "visual_coaching": visual_result.get("coaching", ""),
+                "visual_observations": visual_result.get("observations", []),
                 "bridge": nxt["bridge"], "next_question": nxt["question"],
                 "retry_suggested": ev.get("retry_suggested", False),
                 "retry_instruction": ev.get("retry_instruction", ""),
@@ -179,5 +190,10 @@ def finish(inp: AnswerIn):
     report = eng.final_report(done, s["meta"].get("role", "Candidate"),
                                s["meta"].get("jd", ""), s["meta"].get("type", ""),
                                s["meta"].get("difficulty", "intermediate"))
+    # Add visual communication summary to report
+    all_visual_events = [{"events": t.get("visual_events", [])} for t in done if t.get("visual_events")]
+    visual_summary = vis.visual_summary_for_report(all_visual_events, s["meta"].get("difficulty", "intermediate"))
+    if visual_summary:
+        report["visual_communication"] = visual_summary
     finished = store.finish_session(inp.session_id, report)
     return {"session_id": inp.session_id, "report": report, "turns": len(done)}

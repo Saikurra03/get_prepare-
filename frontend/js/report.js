@@ -9,6 +9,38 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
   if (d.error || !d.report) { page.innerHTML = `<div class="card">Report not ready. <a href="/interview-live?sid=${sid}">Back to interview</a>.</div>`; return; }
   const r = d.report;
   const sec = (t, body) => body ? `<div class="card mt"><h3>${t}</h3><div class="small">${body}</div></div>` : "";
+
+  // Visual Communication section
+  const vc = r.visual_communication;
+  let visualHtml = "";
+  if (vc && Object.keys(vc).length > 0) {
+    const items = [];
+    if (vc.camera_attention) {
+      const ca = vc.camera_attention;
+      items.push(`<div><b>Camera Attention:</b> ${ca.gaze_away_count} look-away${ca.gaze_away_count !== 1 ? "s" : ""} (${ca.gaze_away_total_sec}s total) — <span style="color:${ca.rating === "good" ? "var(--ok)" : "var(--warn)"}">${ca.rating}</span></div>`);
+    }
+    if (vc.posture) {
+      const p = vc.posture;
+      items.push(`<div><b>Posture:</b> ${p.slouch_count} slouch${p.slouch_count !== 1 ? "es" : ""} (${p.slouch_total_sec}s total) — <span style="color:${p.rating === "good" ? "var(--ok)" : "var(--warn)"}">${p.rating}</span></div>`);
+    }
+    if (vc.movement) {
+      items.push(`<div><b>Movement:</b> ${vc.movement.excessive_count} excessive movement${vc.movement.excessive_count !== 1 ? "s" : ""} — <span style="color:${vc.movement.rating === "good" ? "var(--ok)" : "var(--warn)"}">${vc.movement.rating}</span></div>`);
+    }
+    if (vc.gestures) {
+      items.push(`<div><b>Gestures:</b> ${vc.gestures.hands_hidden_count} time${vc.gestures.hands_hidden_count !== 1 ? "s" : ""} hands hidden — <span style="color:${vc.gestures.rating === "good" ? "var(--ok)" : "var(--warn)"}">${vc.gestures.rating}</span></div>`);
+    }
+    if (vc.strengths && vc.strengths.length) {
+      items.push(`<div style="color:var(--ok);margin-top:4px">✓ ${esc(vc.strengths.join(" · "))}</div>`);
+    }
+    if (vc.patterns && vc.patterns.length) {
+      items.push(`<div style="color:var(--warn);margin-top:4px">⚠ ${esc(vc.patterns.join(" · "))}</div>`);
+    }
+    if (vc.priority) {
+      items.push(`<div style="margin-top:4px"><b>Priority:</b> ${esc(vc.priority)}</div>`);
+    }
+    visualHtml = `<div class="card mt"><h3>📷 Visual Communication</h3><div class="small">${items.join("")}</div></div>`;
+  }
+
   page.innerHTML = `
     <div class="card"><div class="small dim">${esc(d.meta?.role || "")} · ${esc(d.meta?.type || "")} · ${esc(fmtT(d.created))}</div>
       <h2>Overall: ${r.overall ?? "—"}/10 <span class="dim" style="font-size:13px;font-weight:400">(${r.answers_evaluated ?? 0} answers)</span></h2>
@@ -23,6 +55,7 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
         <div class="row mt"><a class="btn" href="/workspace?mode=qa">Retry it in Q&A</a></div></div>
     </div>
     ${sec("Communication", esc(r.communication || ""))}
+    ${visualHtml}
     ${sec("Technical performance", esc(r.technical || ""))}
     ${sec("Role alignment", esc(r.role_alignment || ""))}
     ${sec("Recurring problems", esc((r.recurring_problems || []).join(" · ") || "—"))}
