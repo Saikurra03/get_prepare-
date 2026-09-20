@@ -1,0 +1,26 @@
+{
+  "outputDirectory": "frontend",
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/practice", "destination": "/practice.html" },
+    { "source": "/workspace", "destination": "/workspace.html" },
+    { "source": "/interview", "destination": "/interview.html" },
+    { "source": "/prepare", "destination": "/prepare.html" },
+    { "source": "/interview-setup", "destination": "/isetup.html" },
+    { "source": "/interview-live", "destination": "/ilive.html" },
+    { "source": "/report", "destination": "/report.html" },
+    { "source": "/progress", "destination": "/progress.html" },
+    { "source": "/history", "destination": "/history.html" },
+    { "source": "/profile", "destination": "/profile.html" },
+    { "source": "/settings", "destination": "/settings.html" },
+    { "source": "/slang", "destination": "/slang.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    }
+  ]
+}

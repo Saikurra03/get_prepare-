@@ -1,0 +1,11 @@
+backend/
+tests/
+.git/
+.pytest_cache/
+.env
+.env.example
+*.pyc
+__pycache__/
+FIXING_PLAN.md
+run.py
+netlify.toml
