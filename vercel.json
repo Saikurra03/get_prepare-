@@ -1,5 +1,6 @@
 {
-  "outputDirectory": "frontend",
+  "buildCommand": "cp -r frontend/* .",
+  "outputDirectory": ".",
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
     { "source": "/practice", "destination": "/practice.html" },
