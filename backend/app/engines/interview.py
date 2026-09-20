@@ -254,16 +254,30 @@ def build_plan(interview_type: str, difficulty: str, context: str,
         f"Generate exactly {num_questions} questions for this {difficulty}-level {interview_type} interview. "
         "Questions must be SPECIFIC to this candidate's material and role — not generic. "
         "Increase depth as questions progress. "
-        "Reply JSON: {\"role\": str, \"focus\": [str], \"questions\": [str]}"
+        "Each question must have a topic label (short category like 'self-intro', 'technical-depth', "
+        "'behavioral-star', 'project-ownership', 'skills-alignment', etc.). "
+        "Spread questions across different topics — at least 3 different topics. "
+        "Reply JSON: {\"role\": str, \"focus\": [str], \"questions\": [{\"q\": str, \"topic\": str}]}"
     )
     try:
         data, resp = service.generate_json(prompt)
-        qs = data.get("questions") or seeds
+        raw_qs = data.get("questions") or seeds
+        # Normalize: handle both {"q": ..., "topic": ...} objects and plain strings
+        questions = []
+        for item in raw_qs:
+            if isinstance(item, dict):
+                questions.append({"q": item.get("q", ""), "topic": item.get("topic", "general")})
+            else:
+                questions.append({"q": str(item), "topic": "general"})
+        questions = questions[:num_questions]
+        random.shuffle(questions)
         return {"role": data.get("role", "Candidate"), "focus": data.get("focus", seeds[:2]),
-                "questions": qs[:num_questions + 1], "provider": resp.provider, "fallback_active": resp.fallback_active}
+                "questions": questions, "provider": resp.provider, "fallback_active": resp.fallback_active}
     except Exception:
         random.shuffle(seeds)
-        return {"role": "Candidate", "focus": seeds[:2], "questions": seeds[:num_questions],
+        topics = ["self-intro", "skills", "experience", "problem-solving", "teamwork"]
+        questions = [{"q": s, "topic": topics[i % len(topics)]} for i, s in enumerate(seeds[:num_questions])]
+        return {"role": "Candidate", "focus": seeds[:2], "questions": questions,
                 "provider": "offline", "fallback_active": False}
 
 

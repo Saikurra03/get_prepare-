@@ -46,7 +46,7 @@ page.innerHTML = `
         </select>
         <label class="fl">Number of questions</label>
         <select id="s_n" style="width:100%">
-          <option>3</option><option selected>5</option><option>7</option><option>10</option>
+          <option>3</option><option selected>5</option><option>7</option><option>10</option><option>15</option><option>20</option>
         </select>
       </div>
     </div>
@@ -121,7 +121,8 @@ function renderDocSection() {
         const isRelevant = !acceptKind || d.kind === acceptKind;
         return `<label style="display:flex;align-items:center;gap:8px;font-weight:400;padding:4px 0;${isRelevant ? "" : "opacity:0.5"}">
           <input type="checkbox" data-doc="${d.id}" ${isRelevant ? "checked" : ""}/>
-          <span>${esc(d.filename)} <span class="dim">(${esc(KIND_LABEL[d.kind] || d.kind)})</span></span>
+          <span style="flex:1">${esc(d.filename)} <span class="dim">(${esc(KIND_LABEL[d.kind] || d.kind)})</span></span>
+          <button class="ghost" data-delete="${d.id}" title="Delete document" style="padding:2px 6px;font-size:11px;color:var(--bad);border:none;background:none;cursor:pointer">✕</button>
         </label>`;
       }).join("")}`;
   }
@@ -166,6 +167,20 @@ function renderDocSection() {
   }
 
   section.innerHTML = banner + existingHtml + uploadHtml;
+
+  // Wire delete buttons
+  section.querySelectorAll("[data-delete]").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const docId = btn.dataset.delete;
+      if (!confirm("Delete this document?")) return;
+      try {
+        await api.removeDoc(docId);
+        await refreshDocs();
+      } catch {}
+    };
+  });
 
   // Wire file upload
   document.getElementById("docFile").onchange = async (e) => {

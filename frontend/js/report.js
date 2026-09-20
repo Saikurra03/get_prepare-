@@ -1,4 +1,4 @@
-/* Interview Report: overall, strengths, weakness, best/worst, comms, technical, alignment, training. */
+/* Interview Report: full per-question breakdown + aggregate analysis. */
 const sid = new URLSearchParams(location.search).get("sid");
 const page = buildShell("Interview report", "BERREADY / Interview / Report");
 page.innerHTML = `<div class="card">Loading your report…</div>`;
@@ -10,51 +10,124 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
   const r = d.report;
   const sec = (t, body) => body ? `<div class="card mt"><h3>${t}</h3><div class="small">${body}</div></div>` : "";
 
-  // Visual Communication section
+  /* --- Per-question breakdown --- */
+  const details = r.question_details || [];
+  let questionHtml = "";
+  if (details.length) {
+    const cards = details.map((qd, i) => {
+      const ev = qd.evaluation || {};
+      const coaching = qd.coaching || {};
+      const dims = ev.dimensions || {};
+      const rel = ev.relevance || {};
+      const isSkipped = qd.answer === "[skipped]" || qd.answer === "[topic changed]";
+
+      // Score
+      const scoreHtml = isSkipped
+        ? `<span class="score" style="background:var(--warn);color:#000">Skipped</span>`
+        : `<span class="score">${ev.score ?? "—"}/10</span>`;
+
+      // Strengths
+      const goodHtml = (ev.good || []).map(g => `<div class="small">✓ ${esc(g)}</div>`).join("");
+
+      // Sentences
+      const sents = (ev.sentences || []).map(s =>
+        `<div class="small">✎ <i>"${esc(s.problem)}"</i> → ${esc(s.fix)}</div>`).join("");
+
+      // Better examples
+      const better = (ev.better_examples || []).map(b =>
+        `<div class="small">"${esc(b.text)}"<br/><span class="dim">Why stronger: ${esc(b.why)}</span></div>`).join("");
+
+      // Visual observations
+      const visEvents = qd.visual_observations || [];
+      const visItems = [];
+      const gazeAway = visEvents.filter(e => e.type === "gaze_away");
+      const slouching = visEvents.filter(e => e.type === "slouching");
+      const gestures = visEvents.filter(e => e.type === "gesture");
+      if (gazeAway.length) visItems.push(`👁 Looked away ${gazeAway.length}x`);
+      if (slouching.length) visItems.push(`🧍 Slouched ${slouching.length}x`);
+      if (gestures.length) visItems.push(`🤌 ${gestures.length} gestures`);
+      const visHtml = visItems.length ? `<div class="small dim" style="margin-top:4px">📷 ${visItems.join(" · ")}</div>` : "";
+
+      // Coaching
+      const coachingHtml = coaching.priority ? `
+        <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:6px;padding:8px;margin-top:8px">
+          ${coaching.appreciation ? `<div class="small" style="color:var(--ok)"><b>💬</b> ${esc(coaching.appreciation)}</div>` : ""}
+          <div class="small"><b>🎯</b> ${esc(coaching.priority)}</div>
+          ${coaching.specific_feedback ? `<div class="small">${esc(coaching.specific_feedback)}</div>` : ""}
+          ${coaching.improvement ? `<div class="small" style="color:var(--accent)"><b>✨</b> ${esc(coaching.improvement)}</div>` : ""}
+        </div>` : "";
+
+      // Model answer
+      const modelHtml = qd.model_answer ? `
+        <div style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:8px;margin-top:8px">
+          <div class="small" style="color:var(--ok);font-weight:600">📝 Model Answer (8-9/10)</div>
+          <div class="small" style="line-height:1.5">${esc(qd.model_answer)}</div>
+        </div>` : "";
+
+      return `
+        <details class="card mt" ${i === 0 ? "open" : ""}>
+          <summary style="cursor:pointer;display:flex;align-items:center;gap:8px">
+            <span class="small dim" style="min-width:24px">Q${i + 1}</span>
+            <span class="small" style="flex:1"><b>${esc(qd.question)}</b></span>
+            ${scoreHtml}
+          </summary>
+          <div style="padding:12px 0 0">
+            <div class="small"><b>Your answer:</b> ${isSkipped ? `<i class="dim">${esc(qd.answer)}</i>` : esc(qd.answer)}</div>
+            ${!isSkipped ? `
+              ${goodHtml}
+              ${ev.biggest_issue ? `<div class="small">⚠ ${esc(ev.biggest_issue)}</div>` : ""}
+              ${rel.note ? `<div class="small dim">🎯 ${esc(rel.verdict || "")}: ${esc(rel.note)}</div>` : ""}
+              ${sents ? `<div class="small mt"><b>Sentence fixes:</b>${sents}</div>` : ""}
+              ${better ? `<div class="small mt"><b>Better way to say it:</b>${better}</div>` : ""}
+              <div class="small dim mt">Clarity: ${esc(dims.clarity || "—")} · Conciseness: ${esc(dims.conciseness || "—")} · Specificity: ${esc(dims.specificity || "—")}</div>
+              <div class="small dim">Vocabulary: ${esc(ev.vocabulary || "—")} · Fillers: ${esc(ev.fillers || "—")} · Pacing: ${esc(ev.pacing || "—")}</div>
+              ${visHtml}
+            ` : ""}
+            ${coachingHtml}
+            ${modelHtml}
+          </div>
+        </details>`;
+    }).join("");
+    questionHtml = `<div class="card mt"><h3>📋 Question-by-Question Breakdown</h3></div>${cards}`;
+  }
+
+  /* --- Visual Communication section --- */
   const vc = r.visual_communication;
   let visualHtml = "";
   if (vc && Object.keys(vc).length > 0) {
     const items = [];
     if (vc.camera_attention) {
       const ca = vc.camera_attention;
-      items.push(`<div><b>Camera Attention:</b> ${ca.gaze_away_count} look-away${ca.gaze_away_count !== 1 ? "s" : ""} (${ca.gaze_away_total_sec}s total) — <span style="color:${ca.rating === "good" ? "var(--ok)" : "var(--warn)"}">${ca.rating}</span></div>`);
+      items.push(`<div><b>Camera Attention:</b> ${ca.gaze_away_count} look-away${ca.gaze_away_count !== 1 ? "s" : ""} (${ca.gaze_away_total_sec}s) — <span style="color:${ca.rating === "good" ? "var(--ok)" : "var(--warn)"}">${ca.rating}</span></div>`);
     }
     if (vc.posture) {
       const p = vc.posture;
-      items.push(`<div><b>Posture:</b> ${p.slouch_count} slouch${p.slouch_count !== 1 ? "es" : ""} (${p.slouch_total_sec}s total) — <span style="color:${p.rating === "good" ? "var(--ok)" : "var(--warn)"}">${p.rating}</span></div>`);
+      items.push(`<div><b>Posture:</b> ${p.slouch_count} slouch${p.slouch_count !== 1 ? "es" : ""} (${p.slouch_total_sec}s) — <span style="color:${p.rating === "good" ? "var(--ok)" : "var(--warn)"}">${p.rating}</span></div>`);
     }
     if (vc.movement) {
-      items.push(`<div><b>Movement:</b> ${vc.movement.excessive_count} excessive movement${vc.movement.excessive_count !== 1 ? "s" : ""} — <span style="color:${vc.movement.rating === "good" ? "var(--ok)" : "var(--warn)"}">${vc.movement.rating}</span></div>`);
+      items.push(`<div><b>Movement:</b> ${vc.movement.excessive_count} excessive — <span style="color:${vc.movement.rating === "good" ? "var(--ok)" : "var(--warn)"}">${vc.movement.rating}</span></div>`);
     }
     if (vc.body_alignment) {
       const ba = vc.body_alignment;
       const baItems = [];
       if (ba.torso_lean_count > 0) baItems.push(`${ba.torso_lean_count} lean${ba.torso_lean_count !== 1 ? "s" : ""}`);
       if (ba.shoulder_rotation_count > 0) baItems.push(`${ba.shoulder_rotation_count} rotation${ba.shoulder_rotation_count !== 1 ? "s" : ""}`);
-      if (baItems.length > 0) {
-        items.push(`<div><b>Body Alignment:</b> ${baItems.join(", ")} — <span style="color:${ba.rating === "good" ? "var(--ok)" : "var(--warn)"}">${ba.rating}</span></div>`);
-      }
+      if (baItems.length) items.push(`<div><b>Body Alignment:</b> ${baItems.join(", ")} — <span style="color:${ba.rating === "good" ? "var(--ok)" : "var(--warn)"}">${ba.rating}</span></div>`);
     }
     if (vc.gestures) {
       const ge = vc.gestures;
-      items.push(`<div><b>Gestures:</b> ${ge.gesture_count} used, ${ge.hands_hidden_count} time${ge.hands_hidden_count !== 1 ? "s" : ""} hands hidden — <span style="color:${ge.rating === "good" ? "var(--ok)" : "var(--warn)"}">${ge.rating}</span></div>`);
-      if (ge.gesture_breakdown && Object.keys(ge.gesture_breakdown).length > 0) {
-        const gItems = Object.entries(ge.gesture_breakdown).map(([k, v]) => `${k.replace("_", " ")}×${v}`).join(", ");
-        items.push(`<div style="padding-left:12px" class="dim">Gesture types: ${gItems}</div>`);
+      items.push(`<div><b>Gestures:</b> ${ge.gesture_count} used — <span style="color:${ge.rating === "good" ? "var(--ok)" : "var(--warn)"}">${ge.rating}</span></div>`);
+      if (ge.gesture_breakdown && Object.keys(ge.gesture_breakdown).length) {
+        items.push(`<div class="dim" style="padding-left:12px">${Object.entries(ge.gesture_breakdown).map(([k, v]) => `${k.replace("_", " ")}×${v}`).join(", ")}</div>`);
       }
     }
-    if (vc.strengths && vc.strengths.length) {
-      items.push(`<div style="color:var(--ok);margin-top:4px">✓ ${esc(vc.strengths.join(" · "))}</div>`);
-    }
-    if (vc.patterns && vc.patterns.length) {
-      items.push(`<div style="color:var(--warn);margin-top:4px">⚠ ${esc(vc.patterns.join(" · "))}</div>`);
-    }
-    if (vc.priority) {
-      items.push(`<div style="margin-top:4px"><b>Priority:</b> ${esc(vc.priority)}</div>`);
-    }
+    if (vc.strengths && vc.strengths.length) items.push(`<div style="color:var(--ok)">✓ ${esc(vc.strengths.join(" · "))}</div>`);
+    if (vc.patterns && vc.patterns.length) items.push(`<div style="color:var(--warn)">⚠ ${esc(vc.patterns.join(" · "))}</div>`);
+    if (vc.priority) items.push(`<div><b>Priority:</b> ${esc(vc.priority)}</div>`);
     visualHtml = `<div class="card mt"><h3>📷 Visual Communication</h3><div class="small">${items.join("")}</div></div>`;
   }
 
+  /* --- Main report --- */
   page.innerHTML = `
     <div class="card"><div class="small dim">${esc(d.meta?.role || "")} · ${esc(d.meta?.type || "")} · ${esc(fmtT(d.created))}</div>
       <h2>Overall: ${r.overall ?? "—"}/10 <span class="dim" style="font-size:13px;font-weight:400">(${r.answers_evaluated ?? 0} answers)</span></h2>
@@ -65,9 +138,9 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
     </div>
     <div class="grid g2 mt">
       <div class="card"><h3>Best answer</h3><div class="small">${esc(r.best_answer?.question || "—")} <span class="score">${r.best_answer?.score ?? ""}</span></div></div>
-      <div class="card"><h3>Weakest answer</h3><div class="small">${esc(r.weakest_answer?.question || "—")}<br/><span class="dim">Issue: ${esc(r.weakest_answer?.issue || "—")}</span></div>
-        <div class="row mt"><a class="btn" href="/workspace?mode=qa">Retry it in Q&A</a></div></div>
+      <div class="card"><h3>Weakest answer</h3><div class="small">${esc(r.weakest_answer?.question || "—")}<br/><span class="dim">Issue: ${esc(r.weakest_answer?.issue || "—")}</span></div></div>
     </div>
+    ${questionHtml}
     ${sec("Communication", esc(r.communication || ""))}
     ${visualHtml}
     ${sec("Technical performance", esc(r.technical || ""))}
@@ -75,7 +148,6 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
     ${sec("Recurring problems", esc((r.recurring_problems || []).join(" · ") || "—"))}
     ${sec("Answer relevance", esc(r.relevance_summary || ""))}
     ${sec("Sentence & grammar patterns", esc(r.sentence_patterns || ""))}
-    ${sec("Pronunciation / articulation", esc(r.pronunciation_note || ""))}
     <div class="card mt"><h3>Most important improvement</h3><div class="small"><b>${esc(r.top_priority || r.biggest_weakness || "—")}</b></div></div>
     <div class="card mt"><h3>Next training target</h3><div class="small">${(r.training || []).map((t) => `• ${esc(t)}`).join("<br/>") || "—"}
     <br/>Recommended next session: <b>${esc(r.next_practice || "—")}</b></div>

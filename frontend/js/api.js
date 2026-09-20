@@ -29,8 +29,10 @@ const api = {
   pasteDoc: (text, kind, filename, section) => api.post("/api/documents/paste", { text, kind, filename: filename || "", section: section || "" }),
   planInterview: (b) => api.post("/api/interview/plan", b),
   answerInterview: (sid, answer) => api.post("/api/interview/answer", { session_id: sid, answer }),
-  retryInterview: (sid, answer) => api.post("/api/interview/retry", { session_id: sid, answer }),
+  skipInterview: (sid) => api.post("/api/interview/skip", { session_id: sid }),
+  changeTopicInterview: (sid) => api.post("/api/interview/change-topic", { session_id: sid }),
   finishInterview: (sid) => api.post("/api/interview/finish", { session_id: sid, answer: "" }),
+  removeDoc: (docId) => api.post("/api/documents/remove", { doc_id: docId }),
   sttTranscribe: (blob, language = "en") => {
     const fd = new FormData();
     fd.append("file", blob, "recording.webm");

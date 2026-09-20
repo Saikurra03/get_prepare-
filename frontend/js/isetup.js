@@ -26,7 +26,7 @@ page.innerHTML = `
     <label class="fl">Role</label><input type="text" id="s_role" placeholder="e.g. Software Engineer" style="width:100%" value="${esc(prefs.get("role", ""))}"/>
     <label class="fl">Difficulty</label><select id="s_diff">
       ${["beginner", "intermediate", "advanced", "expert"].map((d) => `<option ${d === prefs.get("diff", "intermediate") ? "selected" : ""}>${d}</option>`).join("")}</select>
-    <label class="fl">Number of questions</label><select id="s_n"><option>3</option><option selected>5</option><option>7</option><option>10</option></select>
+    <label class="fl">Number of questions</label><select id="s_n"><option>3</option><option selected>5</option><option>7</option><option>10</option><option>15</option><option>20</option></select>
   </div>
   <div class="card"><h3>Documents & devices</h3>
     <div id="docSection"></div>
@@ -89,6 +89,7 @@ function renderDocSection() {
           <input type="checkbox" data-doc="${d.id}" ${isRelevant ? "checked" : ""}/>
           ${esc(d.filename)} <span class="dim">(${esc(KIND_LABEL[d.kind] || d.kind)})</span>
           ${isRelevant && acceptKind ? `<span style="color:var(--good)">✓</span>` : ""}
+          <button class="ghost" data-delete="${d.id}" title="Delete" style="padding:1px 4px;font-size:10px;color:var(--bad);border:none;background:none;cursor:pointer;margin-left:4px">✕</button>
         </label>`;
       }).join("")}`;
   }
@@ -135,6 +136,20 @@ function renderDocSection() {
   }
 
   docSection.innerHTML = banner + existingDocsHtml + uploadHtml;
+
+  // Wire delete buttons
+  docSection.querySelectorAll("[data-delete]").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const docId = btn.dataset.delete;
+      if (!confirm("Delete this document?")) return;
+      try {
+        await api.removeDoc(docId);
+        await refreshDocs();
+      } catch {}
+    };
+  });
 
   // Wire up file upload
   document.getElementById("docFile").onchange = async (e) => {
