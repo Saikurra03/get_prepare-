@@ -73,6 +73,10 @@ class ProviderManager:
                 return True
         return False
 
+    def configured(self) -> list[str]:
+        """Provider names that have keys available (safe labels only, no secrets)."""
+        return key_manager.configured_providers(list(self._providers.keys()))
+
     def generate(self, prompt: str, system: str = "", max_tokens: int = 1200) -> AIResponse:
         errors: list[str] = []
         attempts = 0

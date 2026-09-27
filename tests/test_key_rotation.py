@@ -170,6 +170,26 @@ def test_offline_when_no_keys(clean_env):
     assert OFFLINE_SENTINEL in str(e.value)
 
 
+def test_status_before_first_call(clean_env):
+    """Before any AI call: offline when no keys, ready when keys are configured."""
+    from backend.app.ai import service as svc
+    real = svc._manager
+    try:
+        # No keys configured -> genuinely offline
+        svc._manager = ProviderManager([ScriptProvider("gemini", {})], sleep_fn=lambda s: None)
+        st = svc.provider_status()
+        assert st["ready"] is False and st["display"] == "offline (no keys)"
+        # Keys exist but no call yet -> ready (never a secret in output)
+        clean_env.setenv("GEMINI_API_KEY_1", "zz-secret-value")
+        key_manager.reload()
+        st = svc.provider_status()
+        assert st["ready"] is True and st["display"] == "AI Ready"
+        assert "awaiting first call" in st["debug"]
+        assert "zz-secret-value" not in str(st)
+    finally:
+        svc._manager = real
+
+
 def test_lowercase_env_names_load(clean_env):
     clean_env.setenv("openrouter_api_key", "or-lower")
     clean_env.setenv("cohere_api_key", "co-lower")

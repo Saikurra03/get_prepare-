@@ -1,9 +1,22 @@
 """Interview generation, follow-up, scoring, JD/resume reflection (offline-safe)."""
-import sys, os
+import sys, os, re
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+import pytest
 from backend.app.engines import interview as eng
 from backend.app.engines import visual_analysis as vis
 from backend.app.documents import context_builder
+
+
+@pytest.fixture
+def offline_ai(monkeypatch):
+    """Remove all AI keys so engine calls take their offline branches (fast, no network)."""
+    from backend.app.ai.key_manager import key_manager
+    for k in list(os.environ):
+        if re.search(r"(GEMINI|GROQ|OPENROUTER|COHERE).*API_KEY", k, re.I):
+            monkeypatch.delenv(k, raising=False)
+    key_manager.reload()
+    yield
+    key_manager.reload()
 
 def test_plan_offline_has_questions():
     p = eng.build_plan("mixed", "intermediate", "Software Engineer with Python")
@@ -57,21 +70,44 @@ def test_next_question_accepts_profile_note():
     n = eng.next_question(hist, "ctx", "hr", "beginner", "focus: confidence")
     assert n["question"]
 
-def test_answer_retry_loop():
+def test_answer_flow_and_finish_report(offline_ai):
+    """Current clean flow: plan -> answer (no feedback returned) -> skip -> finish report."""
     from fastapi.testclient import TestClient
     from backend.app.main import app
     c = TestClient(app)
-    p = c.post("/api/interview/plan", json={"interview_type": "behavioral", "difficulty": "beginner"}).json()
+    p = c.post("/api/interview/plan", json={"interview_type": "behavioral",
+                                            "difficulty": "beginner",
+                                            "num_questions": 2}).json()
     sid = p["session_id"]
-    a1 = c.post("/api/interview/answer", json={"session_id": sid, "answer": "We had a deploy issue um like stuff."}).json()
-    assert "evaluation" in a1 and a1["evaluation"]["articulation"] == "unavailable"
-    r = c.post("/api/interview/retry", json={"session_id": sid, "answer": "We had a deploy outage. I rolled back in 10 minutes."}).json()
-    assert r["old"]["answer"].startswith("We had a deploy issue") and "evaluation" in r
-    d = c.get(f"/api/session/detail?sid={sid}").json()
-    answered = [t for t in d["turns"] if t.get("answer")]
-    assert len(answered) == 1 and answered[0]["answer"].startswith("We had a deploy outage")
+    assert p["current_question"] and p["total_questions"] >= 1
+
+    # Answer q1: next question comes back, but NO evaluation (feedback only at finish)
+    a1 = c.post("/api/interview/answer",
+                json={"session_id": sid, "answer": "We had a deploy issue um like stuff."}).json()
+    assert "evaluation" not in a1
+    assert a1["answered"] == 1
+    assert a1.get("next_question") or a1.get("at_limit")
+
+    # Skip q2: counts as answered with score 0, reaches the limit
+    sk = c.post("/api/interview/skip", json={"session_id": sid, "answer": ""}).json()
+    assert sk["answered"] == 2 and sk["at_limit"] is True
+
+    # Finish: full report with per-question breakdown (evaluation lives here)
     f = c.post("/api/interview/finish", json={"session_id": sid, "answer": ""}).json()
-    assert f["report"]["answers_evaluated"] == 1
+    rep = f["report"]
+    assert rep["answers_evaluated"] == 2
+    assert len(rep["question_details"]) == 2
+    ev = rep["question_details"][0]["evaluation"]
+    assert "score" in ev
+    # honesty: audio-only metrics are never invented
+    assert ev["articulation"] == "unavailable" and ev["pronunciation"] == "unavailable"
+    assert rep["question_details"][1]["evaluation"]["main_issue"] == "skipped"
+
+    # Session is finished and readable from the detail endpoint
+    d = c.get(f"/api/session/detail?sid={sid}").json()
+    assert d["status"] == "finished"
+    answered = [t for t in d["turns"] if t.get("answer")]
+    assert len(answered) == 2
 
 def test_evaluate_extra_dimensions_present():
     ev = eng.evaluate_answer("Explain retries?", "We used retries um like to fix stuff.", "technical")

@@ -24,6 +24,15 @@ COACH_SYSTEM = (
 def provider_status() -> dict:
     """Safe status only: 'AI Ready' for users, 'Gemini — Key 2 active' for debug. Never a secret."""
     if not _manager.last_provider:
+        # No AI call since boot — distinguish "keys configured" from "no keys at all".
+        try:
+            configured = _manager.configured()
+        except Exception:
+            configured = []
+        if configured:
+            return {"provider": None, "key_label": None, "fallback_active": False,
+                    "ready": True, "display": "AI Ready",
+                    "debug": "configured: " + ", ".join(configured) + " (awaiting first call)"}
         return {"provider": None, "key_label": None, "fallback_active": False,
                 "ready": False, "display": "offline (no keys)", "debug": "offline (no keys)"}
     label = _manager.last_key_label or ""
