@@ -30,20 +30,47 @@ _activity = {
     "ai_calls": 0,
     "ai_success": 0,
     "ai_failures": 0,
+    "ai_last_ms": None,      # duration of the most recent AI call
+    "ai_avg_ms": None,       # running average of AI call duration
     "last_request_time": None,
     "last_ai_time": None,
     "errors": 0,
 }
 
+# --- Per-route latency (in-memory, resets on deploy). Safe — no user data. ---
+_latency: dict[str, dict] = {}
+
+def _record_latency(path: str, ms: float) -> None:
+    """Track avg/last/max duration per normalized route. Bounded, no secrets."""
+    b = _latency.get(path)
+    if b is None:
+        b = _latency[path] = {"n": 0, "avg_ms": 0.0, "last_ms": 0.0, "max_ms": 0.0}
+    b["n"] += 1
+    b["last_ms"] = round(ms, 1)
+    b["max_ms"] = round(max(b["max_ms"], ms), 1)
+    b["avg_ms"] = round(b["avg_ms"] + (ms - b["avg_ms"]) / b["n"], 1)
+    if len(_latency) > 100:
+        # drop the oldest entry (dicts keep insertion order)
+        _latency.pop(next(iter(_latency)), None)
+
 @app.middleware("http")
 async def track_activity(request: Request, call_next):
     _activity["total_requests"] += 1
     _activity["last_request_time"] = time.time()
-    if request.url.path.startswith("/api/"):
+    is_api = request.url.path.startswith("/api/")
+    if is_api:
         _activity["api_requests"] += 1
+    t0 = time.perf_counter()
     response = await call_next(request)
     if response.status_code >= 400:
         _activity["errors"] += 1
+    if is_api:
+        ms = (time.perf_counter() - t0) * 1000
+        _record_latency(request.url.path, ms)
+        try:
+            response.headers["X-Response-Time"] = f"{ms:.0f}ms"
+        except Exception:
+            pass
     return response
 
 app.include_router(routes_coach.router)
@@ -66,6 +93,8 @@ PAGES = {
     "prepare": "prepare.html",       # Interview Preparation + Documents
     "interview-setup": "isetup.html",
     "interview-live": "ilive.html",
+    "mock": "mock.html",            # Full-screen mock interview room (all 12 modes)
+    "qbank": "qbank.html",          # Your own question list (upload/paste)
     "report": "report.html",         # Interview report
     "progress": "progress.html",     # Progress Overview
     "history": "history.html",       # Session History
@@ -135,10 +164,13 @@ def status():
             "ai_calls": _activity["ai_calls"],
             "ai_success": _activity["ai_success"],
             "ai_failures": _activity["ai_failures"],
+            "ai_last_ms": _activity["ai_last_ms"],
+            "ai_avg_ms": _activity["ai_avg_ms"],
             "errors": _activity["errors"],
             "last_request": _activity["last_request_time"],
             "last_ai_call": _activity["last_ai_time"],
         },
+        "latency": {k: dict(v) for k, v in _latency.items()},
         "services": {
             "stt": {"configured": bool(settings.stt_provider and settings.stt_model), "provider": settings.stt_provider, "model": settings.stt_model},
             "tts": {"configured": bool(settings.elevenlabs_api_key and settings.elevenlabs_voice_id)},

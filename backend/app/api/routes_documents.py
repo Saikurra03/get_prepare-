@@ -60,11 +60,12 @@ class RemoveIn(BaseModel):
 @router.post("/remove")
 def remove(inp: RemoveIn):
     from backend.app.session.manager import _load, _save
-    docs = _load("documents.json", [])
-    kept = [d for d in docs if d["id"] != inp.doc_id]
-    if len(kept) == len(docs):
-        return {"error": "document not found", "code": "no_doc"}
-    _save("documents.json", kept)
+    with store.lock():
+        docs = _load("documents.json", [])
+        kept = [d for d in docs if d["id"] != inp.doc_id]
+        if len(kept) == len(docs):
+            return {"error": "document not found", "code": "no_doc"}
+        _save("documents.json", kept)
     return {"status": "removed", "doc_id": inp.doc_id}
 
 

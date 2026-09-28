@@ -59,15 +59,24 @@ def _offline_coach(prompt: str) -> str:
 
 def generate(prompt: str, system: str = COACH_SYSTEM, max_tokens: int = 1200) -> AIResponse:
     import time as _time
-    from backend.app.main import _activity
+    from backend.app.main import _activity, _record_latency
     _activity["ai_calls"] += 1
+    t0 = _time.perf_counter()
     try:
         resp = _manager.generate(prompt, system=system, max_tokens=max_tokens)
+        ms = (_time.perf_counter() - t0) * 1000
         _activity["ai_success"] += 1
         _activity["last_ai_time"] = _time.time()
+        # Rolling AI latency (last + average) for /api/status
+        _activity["ai_last_ms"] = round(ms, 1)
+        n = _activity["ai_success"]
+        prev = _activity.get("ai_avg_ms") or 0.0
+        _activity["ai_avg_ms"] = round(prev + (ms - prev) / n, 1)
+        _record_latency("ai:generate", ms)
         return resp
     except Exception as exc:
         _activity["ai_failures"] += 1
+        _record_latency("ai:generate", (_time.perf_counter() - t0) * 1000)
         if OFFLINE_SENTINEL in str(exc):
             log.info("offline mode: no AI keys, using heuristic")
             tag = "offline"

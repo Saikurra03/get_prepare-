@@ -14,6 +14,7 @@ class TranscribeResponse(BaseModel):
     model: str
     confidence: float | None = None
     fallback_used: bool = False
+    whisper_ms: float | None = None
 
 
 @router.post("/transcribe")
@@ -39,9 +40,12 @@ async def transcribe(
         raise HTTPException(status_code=400, detail="Audio file too large (max 25MB)")
     
     try:
+        import time as _time
         from backend.app.engines import stt as stt_engine
+        t0 = _time.perf_counter()
         result = stt_engine.transcribe_audio(audio_bytes, language)
-        
+        whisper_ms = round((_time.perf_counter() - t0) * 1000, 1)
+
         return TranscribeResponse(
             text=result.text,
             language=result.language,
@@ -50,6 +54,7 @@ async def transcribe(
             model=result.model,
             confidence=result.confidence,
             fallback_used=result.fallback_used,
+            whisper_ms=whisper_ms,
         )
     except RuntimeError as exc:
         # STT unavailable - return error for client to fall back to browser STT

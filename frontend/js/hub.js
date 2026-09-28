@@ -22,6 +22,18 @@ page.innerHTML = `
       <a class="btn primary" href="/prepare">Open preparation</a>
     </div>
   </div>
+  <div class="grid g2 mb">
+    <div class="card mode">
+      <div class="m-ic">⛶</div>
+      <div><h3>Full-screen mock room</h3><p>Immersive, distraction-free interview — camera, timer, progress dots, report at the end.</p></div>
+      <a class="btn primary go" href="/mock">Enter room</a>
+    </div>
+    <div class="card mode">
+      <div class="m-ic">☰</div>
+      <div><h3>Your question list</h3><p>Upload or paste your own questions — count, difficulty and order are yours. The AI never invents them.</p></div>
+      <a class="btn primary go" href="/qbank">Build list</a>
+    </div>
+  </div>
   <div class="grid g2" id="types"></div>`;
 
 let DOC_MAP = {};

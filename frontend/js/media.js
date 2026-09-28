@@ -1,7 +1,8 @@
 /* Shared camera / mic / speech helpers. Graceful when hardware is missing. */
 function createMedia() {
   const m = {
-    stream: null,
+    stream: null,       // camera video stream only
+    audioStream: null,  // mic capture stream for recording (separate — never alias m.stream)
     camOn: false,
     micOn: false,
     rec: null,
@@ -56,9 +57,10 @@ function createMedia() {
   m.startRecording = async () => {
     if (m.recording) return false;
     try {
-      // Request audio-only stream for recording
+      // Request audio-only stream for recording — stored separately so the
+      // camera stream (m.stream) is never clobbered or stopped by mistake.
       const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      m.stream = audioStream;
+      m.audioStream = audioStream;
       m.audioChunks = [];
       
       // Use webm/opus for good compression
@@ -99,8 +101,8 @@ function createMedia() {
       m.mediaRecorder.onstop = () => {
         const blob = new Blob(m.audioChunks, { type: "audio/webm" });
         m.recording = false;
-        m.stream?.getTracks().forEach(t => t.stop());
-        m.stream = null;
+        m.audioStream?.getTracks().forEach(t => t.stop());
+        m.audioStream = null;
         resolve(blob);
       };
       m.mediaRecorder.stop();
@@ -108,28 +110,32 @@ function createMedia() {
   };
 
   m.uploadRecording = async (blob, language = "en") => {
-    if (!blob || blob.size === 0) return { text: "", fallback: true };
-    
+    if (!blob || blob.size === 0) return { text: "", fallback: true, ms: 0 };
+
     const formData = new FormData();
     formData.append("file", blob, "recording.webm");
-    formData.append("language", "en");
-    
+    formData.append("language", language || "en");
+
+    const t0 = performance.now();
     try {
       const response = await fetch((window.APP_CONFIG?.API_BASE || "") + "/api/stt/transcribe", {
         method: "POST",
         body: formData,
       });
-      
+      const ms = Math.round(performance.now() - t0);
+      try { (window.api && api.timings) && api._record("POST /api/stt/transcribe", ms); } catch {}
+
       if (response.ok) {
         const data = await response.json();
-        return { text: data.text || "", fallback: false, confidence: data.confidence };
+        return { text: data.text || "", fallback: false, confidence: data.confidence,
+                 ms, whisper_ms: data.whisper_ms };
       } else {
         console.warn("Server STT failed:", response.status, await response.text());
-        return { text: "", fallback: true };
+        return { text: "", fallback: true, ms };
       }
     } catch (err) {
       console.warn("Server STT error:", err);
-      return { text: "", fallback: true };
+      return { text: "", fallback: true, ms: Math.round(performance.now() - t0) };
     }
   };
 

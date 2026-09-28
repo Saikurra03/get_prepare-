@@ -127,11 +127,46 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
     visualHtml = `<div class="card mt"><h3>📷 Visual Communication</h3><div class="small">${items.join("")}</div></div>`;
   }
 
+  /* --- Dashboard (Phase 5): charts of real report numbers only --- */
+  const skippedOf = (qd) => qd.answer === "[skipped]" || qd.answer === "[topic changed]";
+  const scoredPts = [], fillerPts = [];
+  details.forEach((qd, i) => {
+    const ev = qd.evaluation || {};
+    if (!skippedOf(qd) && typeof ev.score === "number") scoredPts.push({ label: `Q${i + 1}`, value: ev.score });
+    if (!skippedOf(qd)) fillerPts.push({ label: `Q${i + 1}`, value: (ev.signals || {}).filler_total ?? 0 });
+  });
+  const skippedN = details.filter(skippedOf).length;
+  const answeredN = details.length - skippedN;
+  let dashHtml = "";
+  if (details.length) {
+    const cells = [];
+    const trend = Charts.line(scoredPts);
+    if (trend) cells.push(`<div class="card"><div class="small dim" style="margin-bottom:6px">Score trend (0–10)</div>${trend}</div>`);
+    const cov = Charts.donut([
+      { label: "Answered", value: answeredN, color: "var(--ok)" },
+      { label: "Skipped", value: skippedN, color: "var(--warn)" },
+    ], { centerLabel: "answers" });
+    if (cov) cells.push(`<div class="card"><div class="small dim" style="margin-bottom:6px">Answer coverage</div>${cov}</div>`);
+    const fill = fillerPts.length ? Charts.bars(fillerPts, { labelW: 44 }) : "";
+    if (fill) cells.push(`<div class="card"><div class="small dim" style="margin-bottom:6px">Fillers per answer</div>${fill}</div>`);
+    if (vc && Object.keys(vc).length) {
+      const visBars = Charts.bars([
+        { label: "Look-aways", value: vc.camera_attention?.gaze_away_count ?? 0, color: "var(--warn)" },
+        { label: "Slouches", value: vc.posture?.slouch_count ?? 0, color: "var(--warn)" },
+        { label: "Excess move", value: vc.movement?.excessive_count ?? 0, color: "var(--warn)" },
+        { label: "Gestures", value: vc.gestures?.gesture_count ?? 0, color: "var(--ok)" },
+      ]);
+      if (visBars) cells.push(`<div class="card"><div class="small dim" style="margin-bottom:6px">Camera signals (session)</div>${visBars}</div>`);
+    }
+    if (cells.length) dashHtml = `<div class="dash mt">${cells.join("")}</div>`;
+  }
+
   /* --- Main report --- */
   page.innerHTML = `
     <div class="card"><div class="small dim">${esc(d.meta?.role || "")} · ${esc(d.meta?.type || "")} · ${esc(fmtT(d.created))}</div>
       <h2>Overall: ${r.overall ?? "—"}/10 <span class="dim" style="font-size:13px;font-weight:400">(${r.answers_evaluated ?? 0} answers)</span></h2>
       <p>${esc(r.summary || "")}</p></div>
+    ${dashHtml}
     <div class="grid g2 mt">
       <div class="card"><h3>Strongest areas</h3><div class="small">${esc((r.strengths || []).join(" · ") || "—")}</div></div>
       <div class="card"><h3>Biggest weakness</h3><div class="small">${esc(r.biggest_weakness || "—")}</div></div>

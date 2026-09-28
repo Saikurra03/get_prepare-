@@ -39,7 +39,10 @@ function showSetup() {
     <button id="bCam">Camera: off</button><button id="bMic">Mic: off</button></div>
     <p class="small dim">Camera and mic stay off until you start. Nothing is recorded — only coaching notes are kept.</p></div>
     <div class="card"><h3>How it works</h3><p class="small mut">Speak → AI observes → one clear priority → retry → compare. Minimal UI while you talk; detail afterwards.</p>
-    <div class="row mt"><button class="primary" id="bStart">Start practice</button><a class="btn ghost" href="/practice">Back</a></div></div></div>
+    <div class="row mt"><button class="primary" id="bStart">Start practice</button>
+    ${["speaking", "story", "communication"].includes(modeKey)
+      ? `<a class="btn" id="bMock" href="/mock?mode=${modeKey}" title="Immersive full-screen room with a full report">⛶ Full-screen mock</a>` : ""}
+    <a class="btn ghost" href="/practice">Back</a></div></div></div>
     <div class="card mt dim-while-speaking" style="display:none"></div>`;
   document.getElementById("bDice") && (document.getElementById("bDice").onclick = () => {
     const s = document.getElementById("f_prompt"); s.selectedIndex = Math.floor(Math.random() * s.options.length);
@@ -52,6 +55,15 @@ function showSetup() {
   };
   document.getElementById("bMic").onclick = (e) => { e.target.textContent = `Mic: ${media.toggleMic() ? "on" : "off"}`; };
   document.getElementById("bStart").onclick = startLive;
+  const bMock = document.getElementById("bMock");
+  if (bMock) bMock.onclick = (e) => {
+    e.preventDefault();
+    readCfg();
+    const p = new URLSearchParams({ mode: modeKey });
+    if (cfg.prompt) p.set("prompt", cfg.prompt);
+    if (cfg.topic) p.set("topic", cfg.topic);
+    location.href = `/mock?${p.toString()}`;
+  };
 }
 function readCfg() {
   const v = (id) => document.getElementById(id)?.value || "";

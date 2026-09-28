@@ -12,6 +12,8 @@ const NAV = [
   ]},
   { sec: "Interview", items: [
     { path: "/interview", label: "Interview coach", ic: "◈" },
+    { path: "/mock", label: "Full-screen mock", ic: "⛶", sub: 1 },
+    { path: "/qbank", label: "Question list", ic: "☰", sub: 1 },
     { path: "/prepare", label: "Preparation", ic: "⧉", sub: 1 },
     { path: "/prepare?type=resume", label: "Documents", ic: "🗎", sub: 1 },
   ]},

@@ -286,7 +286,7 @@ document.getElementById("bGo").onclick = async () => {
       btn.textContent = "Start interview";
       return;
     }
-    location.href = `/interview-live?sid=${r.session_id}`;
+    location.href = `/mock?sid=${r.session_id}`;
   } catch (e) {
     errEl.textContent = "Could not start — is the server running? " + (e.message || "");
     btn.disabled = false;

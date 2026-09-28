@@ -1,14 +1,24 @@
 /* Thin typed wrapper over the real backend APIs. No fake data. */
 const API_BASE = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || "";
 const api = {
+  timings: [],  // recent API round-trips: {p, ms} — for the Settings latency panel
   async _j(res) {
     if (!res.ok) throw new Error(`request failed (${res.status})`);
     return res.json();
   },
-  get(p) { return fetch(API_BASE + p).then(api._j); },
+  _record(p, ms) {
+    api.timings.push({ p, ms: Math.round(ms) });
+    if (api.timings.length > 50) api.timings.shift();
+  },
+  async _timed(p, fn) {
+    const t0 = performance.now();
+    try { return await fn(); }
+    finally { api._record(p, performance.now() - t0); }
+  },
+  get(p) { return api._timed(p, () => fetch(API_BASE + p).then(api._j)); },
   post(p, body, opts = {}) {
-    return fetch(API_BASE + p, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body), ...opts }).then(api._j);
+    return api._timed(p, () => fetch(API_BASE + p, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body), ...opts }).then(api._j));
   },
   health: () => api.get("/api/health"),
   sessionHealth: () => api.get("/api/session/health"),
@@ -28,9 +38,10 @@ const api = {
   clearDocs: (section) => api.post("/api/documents/clear", { section: section || "" }),
   pasteDoc: (text, kind, filename, section) => api.post("/api/documents/paste", { text, kind, filename: filename || "", section: section || "" }),
   planInterview: (b) => api.post("/api/interview/plan", b),
-  answerInterview: (sid, answer) => api.post("/api/interview/answer", { session_id: sid, answer }),
-  skipInterview: (sid) => api.post("/api/interview/skip", { session_id: sid }),
-  changeTopicInterview: (sid) => api.post("/api/interview/change-topic", { session_id: sid }),
+  parseQuestions: (text, filename) => api.post("/api/interview/parse-questions", { text, filename: filename || "" }),
+  answerInterview: (sid, answer, visual) => api.post("/api/interview/answer", { session_id: sid, answer, visual: visual || null }),
+  skipInterview: (sid) => api.post("/api/interview/skip", { session_id: sid, answer: "" }),
+  changeTopicInterview: (sid) => api.post("/api/interview/change-topic", { session_id: sid, answer: "" }),
   finishInterview: (sid) => api.post("/api/interview/finish", { session_id: sid, answer: "" }),
   removeDoc: (docId) => api.post("/api/documents/remove", { doc_id: docId }),
   sttTranscribe: (blob, language = "en") => {

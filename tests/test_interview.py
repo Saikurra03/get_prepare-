@@ -290,3 +290,104 @@ def test_visual_analysis_low_gesture_variety():
     r = vis.analyze_visuals(events, "q", "a", "hr", "intermediate")
     assert r["gesture_analysis"]["variety_score"] < 0.5
     assert r["gesture_analysis"]["coaching"] != ""
+
+
+# ---------------- Phase 2: background evaluation + latency ----------------
+
+def test_answer_is_fast_and_finish_joins_background_jobs(offline_ai):
+    """Answer returns immediately with analysis_pending; /finish joins the jobs."""
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+    c = TestClient(app)
+    p = c.post("/api/interview/plan", json={"interview_type": "hr",
+                                            "difficulty": "beginner",
+                                            "num_questions": 2}).json()
+    sid = p["session_id"]
+
+    a = c.post("/api/interview/answer",
+               json={"session_id": sid, "answer": "I handled a production incident by rolling back and adding alerts."})
+    assert a.status_code == 200
+    body = a.json()
+    # No evaluation yet — analysis runs in the background
+    assert body.get("analysis_pending") is True
+    assert "evaluation" not in body
+    assert body.get("next_question") or body.get("at_limit")
+
+    # Finish must wait for the job and include the evaluation in the report
+    f = c.post("/api/interview/finish", json={"session_id": sid, "answer": ""})
+    assert f.status_code == 200
+    rep = f.json()["report"]
+    details = rep["question_details"]
+    assert len(details) == 1
+    assert "score" in details[0]["evaluation"], "background evaluation should be joined by /finish"
+    # No turn left stuck pending
+    d = c.get(f"/api/session/detail?sid={sid}").json()
+    assert all(not t.get("analysis_pending") for t in d["turns"])
+
+
+def test_skip_without_answer_field_is_accepted():
+    """Regression: /skip called with only session_id used to 422 (answer was required)."""
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+    c = TestClient(app)
+    p = c.post("/api/interview/plan", json={"interview_type": "hr",
+                                            "difficulty": "beginner",
+                                            "num_questions": 3}).json()
+    sid = p["session_id"]
+    r = c.post("/api/interview/skip", json={"session_id": sid})
+    assert r.status_code == 200, r.text
+    assert r.json()["answered"] == 1
+    # change-topic with the same minimal payload
+    r2 = c.post("/api/interview/change-topic", json={"session_id": sid})
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["answered"] == 2
+
+
+def test_visual_payload_ingested_into_report(offline_ai):
+    """Visual events sent with the answer land in the turn and the final report."""
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+    c = TestClient(app)
+    p = c.post("/api/interview/plan", json={"interview_type": "hr",
+                                            "difficulty": "beginner",
+                                            "num_questions": 1}).json()
+    sid = p["session_id"]
+    events = [
+        {"type": "gaze_away", "duration": 5, "detail": "Looked away"},
+        {"type": "slouching", "duration": 4, "detail": "Slouched"},
+    ]
+    a = c.post("/api/interview/answer",
+               json={"session_id": sid, "answer": "I prioritize tasks by impact and deadlines.",
+                     "visual": {"events": events, "summary": {}}})
+    assert a.status_code == 200 and a.json().get("analysis_pending") is True
+
+    f = c.post("/api/interview/finish", json={"session_id": sid, "answer": ""})
+    rep = f.json()["report"]
+    qd = rep["question_details"][0]
+    assert len(qd["visual_observations"]) == 2
+    assert qd["visual_coaching"] != ""
+    assert "visual_communication" in rep
+
+
+def test_status_reports_latency_fields():
+    """/api/status exposes per-route latency + AI timing; API responses carry X-Response-Time."""
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+    c = TestClient(app)
+    r = c.get("/api/status")
+    assert r.status_code == 200
+    st = r.json()
+    assert "latency" in st and isinstance(st["latency"], dict)
+    assert st["latency"], "the /api/status call itself should be recorded"
+    act = st["activity"]
+    assert "ai_last_ms" in act and "ai_avg_ms" in act
+    assert act["ai_avg_ms"] is None or act["ai_avg_ms"] > 0
+    assert "X-Response-Time" in r.headers
+
+    # AI timing populated after an offline generate
+    from backend.app.ai import service as ai_service
+    ai_service.generate("Say hi.")
+    st2 = c.get("/api/status").json()
+    assert st2["activity"]["ai_last_ms"] is not None
+    assert st2["activity"]["ai_avg_ms"] > 0
+    assert "ai:generate" in st2["latency"]

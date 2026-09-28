@@ -3,10 +3,19 @@ Session data is also encoded in the session ID for resilience against ephemeral 
 from __future__ import annotations
 import json
 import os
+import threading
 import time
 import uuid
 import base64
 from backend.app.config import settings
+
+# Global lock: all read-modify-write cycles on the JSON files happen under this lock
+# so background analysis jobs and request handlers never lose each other's writes.
+_LOCK = threading.RLock()
+
+def lock() -> threading.RLock:
+    """The persistence lock — use around multi-step load/modify/save sequences."""
+    return _LOCK
 
 def _dir() -> str:
     d = settings.data_dir
@@ -60,11 +69,12 @@ def _decode_session(sid: str) -> dict | None:
 
 # ---- sessions ----
 def create_session(kind: str, meta: dict | None = None) -> dict:
-    sessions = _load("sessions.json", [])
-    s = {"id": uuid.uuid4().hex[:10], "kind": kind, "created": time.time(),
-         "meta": meta or {}, "turns": [], "status": "active"}
-    sessions.append(s)
-    _save("sessions.json", sessions)
+    with _LOCK:
+        sessions = _load("sessions.json", [])
+        s = {"id": uuid.uuid4().hex[:10], "kind": kind, "created": time.time(),
+             "meta": meta or {}, "turns": [], "status": "active"}
+        sessions.append(s)
+        _save("sessions.json", sessions)
     # Return with encoded ID for resilience
     return {**s, "id": _encode_session(s)}
 
@@ -87,7 +97,7 @@ def get_session(sid: str) -> dict | None:
     return None
 
 def _save_session(session: dict) -> None:
-    """Save session to file AND update encoded ID."""
+    """Save session to file AND update encoded ID. Caller must hold _LOCK."""
     sessions = _load("sessions.json", [])
     raw_id = _decode_session(session["id"])["id"] if session["id"].startswith(_SESSION_PREFIX) else session["id"]
     found = False
@@ -101,23 +111,42 @@ def _save_session(session: dict) -> None:
     _save("sessions.json", sessions)
 
 def append_turn(sid: str, turn: dict) -> dict | None:
-    s = get_session(sid)
-    if not s:
-        return None
-    s["turns"].append(turn)
-    _save_session(s)
+    with _LOCK:
+        s = get_session(sid)
+        if not s:
+            return None
+        s["turns"].append(turn)
+        _save_session(s)
     return s
 
+def update_turn(sid: str, tid: str, fields: dict) -> bool:
+    """Update one turn (matched by its `tid`) atomically. Used by background analysis jobs."""
+    if not tid:
+        return False
+    with _LOCK:
+        sessions = _load("sessions.json", [])
+        decoded = _decode_session(sid)
+        raw_id = decoded["id"] if decoded and decoded.get("id") else sid
+        for s in sessions:
+            if s["id"] == raw_id:
+                for t in s.get("turns", []):
+                    if t.get("tid") == tid:
+                        t.update(fields)
+                        _save("sessions.json", sessions)
+                        return True
+        return False
+
 def finish_session(sid: str, report: dict | None = None) -> dict | None:
-    s = get_session(sid)
-    if not s:
-        return None
-    s["status"] = "finished"
-    if report is not None:
-        s["report"] = report
-    _save_session(s)
-    if report or s.get("turns"):
-        update_profile_from_session(s)
+    with _LOCK:
+        s = get_session(sid)
+        if not s:
+            return None
+        s["status"] = "finished"
+        if report is not None:
+            s["report"] = report
+        _save_session(s)
+        if report or s.get("turns"):
+            update_profile_from_session(s)
     return s
 
 def list_sessions() -> list[dict]:
@@ -125,9 +154,10 @@ def list_sessions() -> list[dict]:
 
 # ---- documents ----
 def save_document(doc: dict) -> list[dict]:
-    docs = _load("documents.json", [])
-    docs.append(doc)
-    _save("documents.json", docs)
+    with _LOCK:
+        docs = _load("documents.json", [])
+        docs.append(doc)
+        _save("documents.json", docs)
     return docs
 
 def list_documents(section: str = "") -> list[dict]:
@@ -141,12 +171,13 @@ def get_documents(ids: list[str]) -> list[dict]:
     return [d for d in docs if d["id"] in ids]
 
 def clear_documents(section: str = "") -> None:
-    if section:
-        docs = _load("documents.json", [])
-        docs = [d for d in docs if d.get("section") != section]
-        _save("documents.json", docs)
-    else:
-        _save("documents.json", [])
+    with _LOCK:
+        if section:
+            docs = _load("documents.json", [])
+            docs = [d for d in docs if d.get("section") != section]
+            _save("documents.json", docs)
+        else:
+            _save("documents.json", [])
 
 # ---- profile ----
 DEFAULT_PROFILE = {

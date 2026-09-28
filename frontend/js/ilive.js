@@ -65,15 +65,34 @@ function autoReadQuestion() {
 }
 
 /* --- Camera --- */
-if (prefs.get("cam", false)) toggleCam(); else document.getElementById("bCam").onclick = toggleCam;
+document.getElementById("bCam").onclick = toggleCam;
+if (prefs.get("cam", false)) toggleCam();
 async function toggleCam() {
   const on = await media.camera(document.getElementById("v"), !media.camOn, () => alert("Camera unavailable — continuing audio-only."));
   document.getElementById("dCam").classList.toggle("on", on);
   if (on) visual.startSampling(document.getElementById("v"), 3000);
+  else visual.stopSampling();
 }
 document.getElementById("bMic").onclick = () => {
   const on = media.toggleMic(); document.getElementById("dMic").classList.toggle("on", on);
 };
+
+/* --- Visual sampling lifecycle (per question) --- */
+function collectVisual() {
+  // Snapshot the current question's visual data for the backend, then reset.
+  visual.stopSampling();
+  const payload = { events: visual.getEvents(), summary: visual.getSummary() };
+  visual.clearEvents();
+  return payload;
+}
+function resumeVisual() {
+  if (media.camOn) visual.startSampling(document.getElementById("v"), 3000);
+}
+function dropVisual() {
+  // Discard visual data for a skipped/changed question and re-arm for the next one.
+  visual.stopSampling();
+  visual.clearEvents();
+}
 
 /* --- Recording + Server STT flow --- */
 let recording = false;
@@ -107,8 +126,9 @@ document.getElementById("bStopRecord").onclick = async () => {
   if (blob) {
     const result = await media.uploadRecording(blob, "en");
     transcript = result.text || "";
+    const took = result.ms ? ` in ${(result.ms / 1000).toFixed(1)}s` : "";
     if (result.confidence !== undefined) {
-      document.getElementById("sttStatus").innerHTML = `<span class="small mut">Transcribed (${(result.confidence * 100).toFixed(0)}%) ${result.fallback ? "⚠️ browser fallback" : "✅ server Whisper"}</span>`;
+      document.getElementById("sttStatus").innerHTML = `<span class="small mut">Transcribed (${(result.confidence * 100).toFixed(0)}%)${took} ${result.fallback ? "⚠️ browser fallback" : "✅ server Whisper"}</span>`;
     }
   }
   if (!transcript) {
@@ -121,6 +141,11 @@ document.getElementById("bStopRecord").onclick = async () => {
   document.getElementById("dRec").style.display = "none";
   document.getElementById("dRec").classList.remove("rec");
   document.getElementById("recT").textContent = "● idle";
+  if (transcript) {
+    document.getElementById("sttStatus").innerHTML = `<span style="color:var(--ok)">✅ Transcript ready — edit if needed, then Submit</span>`;
+  } else {
+    document.getElementById("sttStatus").innerHTML = `<span style="color:var(--warn)">No speech detected — type your answer or record again.</span>`;
+  }
 };
 
 document.getElementById("bTalk").onclick = (e) => media.listen(
@@ -154,13 +179,11 @@ document.getElementById("bSend").onclick = async () => {
   const a = document.getElementById("tx").textContent.trim();
   if (!a || a === "…") { showStatus("Empty — answer not heard. Check microphone.", "warn"); return; }
   media.stopListen(); document.body.classList.remove("speaking");
-  visual.stopSampling();
-  const visualSummary = visual.getSummary();
-  visual.clearEvents();
+  const visualPayload = collectVisual();
   setSubmitting(true, "Submitting…");
-  showStatus("Submitting your answer…", "dim");
+  showStatus("Saving your answer — next question coming up…", "dim");
   try {
-    const r = await api.answerInterview(sid, a);
+    const r = await api.answerInterview(sid, a, visualPayload);
     if (r.error) { showStatus(r.error, "warn"); setSubmitting(false); return; }
     if (r.answered !== undefined) answered = r.answered;
     document.getElementById("tx").textContent = "";
@@ -177,8 +200,10 @@ document.getElementById("bSend").onclick = async () => {
     document.getElementById("bridge").textContent = r.bridge || "";
     document.getElementById("q").textContent = r.next_question;
     document.getElementById("ansLabel").textContent = "Your answer — speak or type";
+    document.getElementById("sttStatus").innerHTML = "";
     showStatus("", "dim");
     setSubmitting(false);
+    resumeVisual();
     autoReadQuestion();
   } catch { showStatus("Server unreachable — try once more.", "warn"); setSubmitting(false); }
 };
@@ -188,6 +213,7 @@ document.getElementById("bSkip").onclick = async () => {
   if (submitting) return;
   setSubmitting(true, "Skipping…");
   media.stopListen(); document.body.classList.remove("speaking");
+  dropVisual();
   try {
     const r = await api.skipInterview(sid);
     if (r.error) { showStatus(r.error, "warn"); setSubmitting(false); return; }
@@ -205,6 +231,7 @@ document.getElementById("bSkip").onclick = async () => {
     document.getElementById("q").textContent = r.next_question;
     showStatus("Question skipped.", "dim");
     setSubmitting(false);
+    resumeVisual();
     autoReadQuestion();
   } catch { showStatus("Server unreachable.", "warn"); setSubmitting(false); }
 };
@@ -214,6 +241,7 @@ document.getElementById("bChangeTopic").onclick = async () => {
   if (submitting) return;
   setSubmitting(true, "Changing topic…");
   media.stopListen(); document.body.classList.remove("speaking");
+  dropVisual();
   try {
     const r = await api.changeTopicInterview(sid);
     if (r.error) { showStatus(r.error, "warn"); setSubmitting(false); return; }
@@ -231,13 +259,14 @@ document.getElementById("bChangeTopic").onclick = async () => {
     document.getElementById("q").textContent = r.next_question;
     showStatus("Switched to a new topic.", "dim");
     setSubmitting(false);
+    resumeVisual();
     autoReadQuestion();
   } catch { showStatus("Server unreachable.", "warn"); setSubmitting(false); }
 };
 
 /* --- End interview --- */
 async function endInterview() {
-  clearInterval(tick); media.stopListen();
+  clearInterval(tick); media.stopListen(); visual.stopSampling();
   if (_lastAudioEl) { try { _lastAudioEl.pause(); } catch {} _lastAudioEl = null; }
   if (_lastBlobUrl) { try { URL.revokeObjectURL(_lastBlobUrl); } catch {} _lastBlobUrl = null; }
   try { await api.finishInterview(sid); } catch {}

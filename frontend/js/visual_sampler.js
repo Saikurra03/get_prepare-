@@ -458,6 +458,9 @@ function createVisualSampler() {
   function startSampling(videoEl, intervalMs = 3000) {
     if (v.sampling) return;
     initCanvas(videoEl);
+    // Load MediaPipe models (async). Detections activate once ready — before that
+    // the loop still samples observations but landmarkers return null.
+    loadVision();
     v.sampling = true;
     v.snapshots = [];
     v.events = [];

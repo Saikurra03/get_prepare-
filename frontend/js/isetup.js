@@ -261,7 +261,7 @@ document.getElementById("bGo").onclick = async () => {
       role: type === "custom" && custom ? `Custom focus: ${custom}. Role: ${role}` : role,
       num_questions: parseInt(document.getElementById("s_n").value, 10),
     });
-    location.href = `/interview-live?sid=${r.session_id}`;
+    location.href = `/mock?sid=${r.session_id}`;
   } catch {
     errEl.textContent = "Could not start — is the server running?";
     btn.disabled = false;

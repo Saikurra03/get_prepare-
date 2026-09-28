@@ -9,6 +9,8 @@
     { "source": "/prepare", "destination": "/prepare.html" },
     { "source": "/interview-setup", "destination": "/isetup.html" },
     { "source": "/interview-live", "destination": "/ilive.html" },
+    { "source": "/mock", "destination": "/mock.html" },
+    { "source": "/qbank", "destination": "/qbank.html" },
     { "source": "/report", "destination": "/report.html" },
     { "source": "/progress", "destination": "/progress.html" },
     { "source": "/history", "destination": "/history.html" },
