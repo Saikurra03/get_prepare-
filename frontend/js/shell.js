@@ -64,6 +64,7 @@ function buildShell(title, crumb) {
       <div class="topbar">
         <button class="icon-btn" id="navToggle" title="Collapse sidebar">☰</button>
         <div><div class="crumb">${crumb}</div><h1>${title}</h1></div>
+        <button class="icon-btn theme-btn" id="themeToggle" title="Switch theme">☾</button>
       </div>
       <div class="content" id="page"></div>
     </div>
@@ -75,6 +76,7 @@ function buildShell(title, crumb) {
     document.body.classList.toggle("nav-collapsed");
     prefs.set("navCollapsed", document.body.classList.contains("nav-collapsed"));
   };
+  if (window.theme) theme.mount(document.getElementById("themeToggle"));
   refreshAI();
   setInterval(refreshAI, 20000);
   return document.getElementById("page");

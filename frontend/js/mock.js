@@ -35,6 +35,7 @@ document.body.innerHTML = `
     <span class="mock-pill" id="mSig" title="Camera signals gathered for this question">👁 0</span>
     <span class="mock-dots" id="mDots"></span>
     <span class="mock-timer" id="mTm">00:00</span>
+    <button class="icon-btn" id="bTheme" title="Switch theme">☾</button>
     <button class="danger" id="bExit">Exit</button>
   </div>
   <div class="mock-body">
@@ -80,6 +81,7 @@ document.body.innerHTML = `
 </div>`;
 
 const $ = (id) => document.getElementById(id);
+if (window.theme) theme.mount($("bTheme"));
 const qText = (t) => { $("q").textContent = t; };
 
 function showMsg(m, type) {
@@ -269,7 +271,7 @@ async function endInterview() {
   clearInterval(tick); media.stopListen(); visual.stopSampling();
   if (_lastBlobUrl) { try { URL.revokeObjectURL(_lastBlobUrl); } catch {} _lastBlobUrl = null; }
   try { await api.finishInterview(sid); } catch {}
-  location.href = `/report?sid=${sid}`;
+  location.href = `/result?sid=${sid}`;
 }
 $("bEnd").onclick = endInterview;
 $("bExit").onclick = endInterview;

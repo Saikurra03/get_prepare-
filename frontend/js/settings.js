@@ -10,6 +10,12 @@ page.innerHTML = `
     <div id="micOut" class="small mut mt">Mic test listens for 5 seconds and shows what it hears.</div></div>
   <div class="card mt"><h3>Response latency</h3><div id="lat" class="small mut">Loading…</div>
     <p class="small dim">Server timings cover the last 100 API routes (in-memory, reset on deploy). Client timings show this browser's recent round-trips.</p></div>
+  <div class="card mt"><h3>Appearance</h3>
+    <div class="row" id="themePair" data-pair>
+      <button id="thLight" data-theme-set="light">Light</button>
+      <button id="thDark" data-theme-set="dark">Dark</button>
+    </div>
+    <p class="small dim">Your choice is saved on this device and applied to every screen.</p></div>
   <div class="card mt"><h3>Preferences</h3>
     <label class="fl">Default interview difficulty</label>
     <select id="p_diff"><option>beginner</option><option>intermediate</option><option>advanced</option><option>expert</option></select>
@@ -57,6 +63,7 @@ page.innerHTML = `
 })();
 document.getElementById("p_diff").value = prefs.get("diff", "intermediate");
 document.getElementById("p_nq").value = prefs.get("nQ", "5");
+if (window.theme) theme.mount(document.getElementById("themePair"));
 document.getElementById("bSave").onclick = () => {
   prefs.set("diff", document.getElementById("p_diff").value);
   prefs.set("nQ", document.getElementById("p_nq").value);

@@ -28,7 +28,7 @@ page.innerHTML = `
     const list = (sess.sessions || []).slice().reverse();
     // continue: most recent session
     document.getElementById("contBox").innerHTML = list.length
-      ? `Last: <b>${esc(list[0].kind)}</b> · ${esc(fmtT(list[0].meta?.created))} · ${esc(list[0].status)}<br/>
+      ? `Last: <b>${esc(list[0].kind)}</b> · ${esc(fmtT(list[0].created || list[0].meta?.created))} · ${esc(list[0].status)}<br/>
          <a class="btn mt" href="/history?sid=${list[0].id}">Review it</a>
          <a class="btn ghost" href="/practice">Start new</a>`
       : `No sessions yet. <a class="btn mt" href="/practice">Choose a practice</a>`;

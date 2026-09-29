@@ -713,37 +713,78 @@ def evaluate_answer(question: str, answer: str, interview_type: str,
 
 def final_report(history: list[dict], role: str, jd_text: str = "",
                  interview_type: str = "", difficulty: str = "intermediate") -> dict:
-    scores = [h.get("evaluation", {}).get("score", 0) for h in history if h.get("evaluation")]
+    """Aggregate a finished interview into the final report.
+
+    Rules:
+    - Every answered question is processed (no sampling, no truncation of scores).
+    - Skipped / topic-changed questions never inject fake scores: they are excluded
+      from the average and from issue counts, but still reported in the breakdown.
+    - The narrative (summary/strengths/...) is built from the ACTUAL answers —
+      AI if available, otherwise a deterministic derivation of the same data.
+    """
+    SKIP_MARKERS = ("[skipped]", "[topic changed]")
+
+    def is_skipped(h: dict) -> bool:
+        return (h.get("answer") or "").strip() in SKIP_MARKERS
+
+    real = [h for h in history if not is_skipped(h)]
+    skipped_n = len(history) - len(real)
+    # Per-question scores: every real answer that carries one contributes.
+    scores = [float(h["evaluation"]["score"]) for h in real
+              if h.get("evaluation") and h["evaluation"].get("score") is not None]
     avg = round(sum(scores) / len(scores), 1) if scores else 0.0
-    best = max(history, key=lambda h: h.get("evaluation", {}).get("score", 0)) if history else {}
-    worst = min(history, key=lambda h: h.get("evaluation", {}).get("score", 10)) if history else {}
-    issues = [(h.get("evaluation") or {}).get("main_issue") for h in history]
+    answered_n = len(scores)
+
+    if real:
+        best = max(real, key=lambda h: (h.get("evaluation") or {}).get("score", 0))
+        worst = min(real, key=lambda h: (h.get("evaluation") or {}).get("score", 10))
+    else:
+        best, worst = {}, {}
+    issues = [(h.get("evaluation") or {}).get("main_issue") for h in real]
     issues = [i for i in issues if i]
     recurring = sorted(set(issues), key=issues.count, reverse=True)[:2]
-    verdicts = [((h.get("evaluation") or {}).get("relevance") or {}).get("verdict", "partially")
-                for h in history if h.get("evaluation")]
+
+    evals = [h.get("evaluation") for h in real if h.get("evaluation")]
+    verdicts = [((e or {}).get("relevance") or {}).get("verdict", "partially") for e in evals]
     n_direct = sum(1 for v in verdicts if v == "directly")
     relevance_summary = (f"{n_direct}/{len(verdicts)} answers directly addressed the question."
                          if verdicts else "No answers evaluated.")
-    tot_fill = sum(((h.get("evaluation") or {}).get("signals") or {}).get("filler_total", 0) for h in history)
-    tot_long = sum(((h.get("evaluation") or {}).get("signals") or {}).get("long_sentences", 0) for h in history)
-    tot_words = sum(((h.get("evaluation") or {}).get("signals") or {}).get("word_count", 0) for h in history)
-    sentence_patterns = (f"Across {len(history)} answers: {tot_fill} fillers, "
+    sigs = [((e or {}).get("signals") or {}) for e in evals]
+    tot_fill = sum(s.get("filler_total", 0) for s in sigs)
+    tot_long = sum(s.get("long_sentences", 0) for s in sigs)
+    tot_words = sum(s.get("word_count", 0) for s in sigs)
+    tot_hedges = sum(s.get("qualifier_total", 0) for s in sigs)
+    sentence_patterns = (f"Across {len(real)} answers: {tot_fill} fillers, "
                          f"{tot_long} over-long sentences, {tot_words} words total.")
     pronunciation_note = ("Not enough data to evaluate pronunciation/articulation: "
                           "sessions are scored from text transcripts, not analyzed audio.")
+    coverage_note = (f"{answered_n} of {len(history)} questions answered"
+                     + (f" ({skipped_n} skipped)." if skipped_n else "."))
 
     type_eval = TYPE_EVAL_INSTRUCTIONS.get(interview_type, TYPE_EVAL_INSTRUCTIONS["mixed"])
     diff_tone = DIFF_EVAL_TONE.get(difficulty, DIFF_EVAL_TONE["intermediate"])
+
+    # Every answer reaches the model: numbered Q&A with its measured score.
+    # (Old version truncated the whole block at 5000 chars — long interviews
+    # had their summary written from only the first few questions.)
+    qa_lines = []
+    for i, h in enumerate(history, 1):
+        ev = h.get("evaluation") or {}
+        qa_lines.append(
+            f"{i}. Q: {h.get('question', '')}\n"
+            f"   A: {(h.get('answer') or '')[:700]}\n"
+            f"   score={ev.get('score', 'n/a')}/10 issue={ev.get('main_issue', 'n/a')}")
+    qa_block = "\n".join(qa_lines)[:14000]
 
     prompt = (
         f"{diff_tone}\n\n"
         f"Write a final {interview_type} interview report for a {role} position ({difficulty} level).\n"
         f"Type criteria: {type_eval}\n\n"
-        f"Q&A:\n{str([(h.get('question'), (h.get('answer') or '')[:500]) for h in history])[:5000]}\n\n"
+        f"All {len(history)} Q&A of this session (cover EVERY one):\n{qa_block}\n\n"
         f"JD excerpt: {jd_text[:1500]}\n\n"
         f"Measured aggregates: relevance {relevance_summary} {sentence_patterns} "
-        f"Recurring issues: {recurring}.\n\n"
+        f"Recurring issues: {recurring}. Coverage: {coverage_note}\n\n"
+        "Base the report only on the answers above and mention every question where relevant.\n"
         "Reply JSON: {\"summary\": str, \"strengths\": [str,str], "
         "\"biggest_weakness\": str, \"communication\": str, \"technical\": str, "
         "\"role_alignment\": str, \"training\": [str,str], "
@@ -753,26 +794,145 @@ def final_report(history: list[dict], role: str, jd_text: str = "",
     try:
         data, resp = service.generate_json(prompt)
     except Exception:
-        data, resp = ({"summary": f"Answered {len(history)} questions, avg score {avg}.",
-                       "strengths": ["showed up and communicated", "gave relevant examples"],
-                       "biggest_weakness": recurring[0] if recurring else "slow time-to-main-point",
-                       "communication": "Work on shorter sentences and fewer fillers.",
-                       "technical": "Add concrete reasoning and examples.",
-                       "role_alignment": "Tie answers to JD requirements explicitly.",
-                       "training": ["Lead with the main point in 10 seconds.",
-                                    "Use one specific project example per answer."],
-                       "top_priority": recurring[0] if recurring else "concise structured answers",
-                       "next_practice": "Spontaneous Q&A"},
-                      type("R", (), {"provider": "offline"})())
+        data, resp = _derived_narrative(
+            real, avg, answered_n, skipped_n, recurring, worst,
+            tot_fill, tot_long, tot_words, tot_hedges, n_direct, len(verdicts),
+            jd_text, coverage_note), type("R", (), {"provider": "offline"})()
     data.setdefault("top_priority", data.get("biggest_weakness", "—"))
     data.setdefault("next_practice", "Practice")
-    return {"overall": avg, "answers_evaluated": len(scores),
-            "best_answer": {"question": best.get("question"), "score": (best.get("evaluation") or {}).get("score")},
-            "weakest_answer": {"question": worst.get("question"),
-                               "issue": (worst.get("evaluation") or {}).get("main_issue")},
+    processed = sum(1 for h in history if h.get("evaluation"))   # incl. skipped
+    # A full tie (all real answers scored the same) means there is no honest
+    # "weakest" — don't present the same question as both best and weakest.
+    best_score = (best.get("evaluation") or {}).get("score")
+    worst_score = (worst.get("evaluation") or {}).get("score")
+    tied = bool(real) and best_score is not None and best_score == worst_score
+    return {"overall": avg, "answers_evaluated": processed,
+            "questions_answered": answered_n, "questions_skipped": skipped_n,
+            "best_answer": {"question": best.get("question"), "score": best_score},
+            "weakest_answer": ({"tied": True, "score": worst_score} if tied else
+                               {"question": worst.get("question"),
+                                "issue": (worst.get("evaluation") or {}).get("main_issue")}),
             **data,
             "recurring_problems": recurring,
             "relevance_summary": relevance_summary,
             "sentence_patterns": sentence_patterns,
             "pronunciation_note": pronunciation_note,
+            "coverage": coverage_note,
             "provider": getattr(resp, "provider", "offline")}
+
+
+# Readable text for canonical issue tokens (used by the offline derivation).
+ISSUE_TEXT = {
+    "fillers": "Filler words (um, like, you know) interrupt your flow.",
+    "long_sentences": "Sentences run too long — one idea per sentence lands better.",
+    "weak_opening": "Answers start slowly; the main point should come first.",
+    "vague_language": "Hedges and vague words replace concrete detail.",
+    "repetition": "The same words repeat inside one answer.",
+    "structure": "Answers lack a clear structure (context → action → result).",
+    "empty_speech": "Some answers were too short to evaluate.",
+    "skipped": "Questions were skipped.",
+    "topic_changed": "Answers drifted off the asked topic.",
+}
+ISSUE_TRAINING = {
+    "fillers": "Record 20-second answers and remove every filler word.",
+    "long_sentences": "Rewrite each point as two short sentences before speaking.",
+    "weak_opening": "Lead each answer with the main point in the first 10 seconds.",
+    "vague_language": "Swap one vague phrase per answer for a number or example.",
+    "repetition": "Say each key term once, then move on.",
+    "structure": "Practice STAR: Situation, Task, Action, Result.",
+    "empty_speech": "Answer out loud fully — no one-word responses.",
+}
+ISSUE_PRACTICE = {
+    "fillers": "20-second challenge",
+    "long_sentences": "20-second challenge",
+    "weak_opening": "Spontaneous Q&A",
+    "vague_language": "Spontaneous Q&A",
+    "repetition": "Spontaneous Q&A",
+    "structure": "Spontaneous Q&A",
+    "empty_speech": "Spontaneous Q&A",
+}
+
+
+def _derived_narrative(real: list[dict], avg: float, answered_n: int, skipped_n: int,
+                       recurring: list[str], worst: dict, tot_fill: int, tot_long: int,
+                       tot_words: int, tot_hedges: int, n_direct: int, n_verdicts: int,
+                       jd_text: str, coverage_note: str) -> dict:
+    """Deterministic report narrative built ONLY from the actual answers.
+
+    Replaces the old canned fallback ("showed up and communicated") — no claim
+    appears here that the data does not support."""
+    evs = [(h.get("evaluation") or {}) for h in real if h.get("evaluation")]
+    scores = [float(e["score"]) for e in evs if e.get("score") is not None]
+    per_answer = sorted(
+        ((float((h.get("evaluation") or {}).get("score", 0)),
+          (h.get("evaluation") or {})) for h in real if h.get("evaluation")),
+        key=lambda x: x[0], reverse=True)
+
+    # Strengths: derived from what actually went well.
+    strengths: list[str] = []
+    for _, e in per_answer[:2]:
+        g = (e.get("good") or [None])[0] or e.get("strength")
+        if g and len(str(g)) < 90 and str(g).lower() not in ("answered the question", ""):
+            if str(g) not in strengths:
+                strengths.append(str(g))
+    if tot_words and tot_fill / max(tot_words, 1) <= 0.02:
+        strengths.append(f"few fillers: {tot_fill} in {tot_words} words")
+    if tot_words and not tot_long:
+        strengths.append("all sentences kept short and readable")
+    if n_verdicts and n_direct == n_verdicts and answered_n:
+        strengths.append("every answer addressed the question asked")
+    if not strengths and answered_n:
+        strengths.append(f"completed all {answered_n} answers (avg {avg}/10)")
+    strengths = strengths[:3]
+
+    # Weakness: from the recurring pattern or the weakest real answer.
+    if recurring:
+        top_issue = recurring[0]
+        biggest_weakness = ISSUE_TEXT.get(top_issue, f"Recurring issue: {top_issue}.")
+    elif worst and (worst.get("evaluation") or {}).get("main_issue"):
+        wi = worst["evaluation"]["main_issue"]
+        biggest_weakness = ISSUE_TEXT.get(wi, f"Weakest answer issue: {wi}.")
+    else:
+        biggest_weakness = "No major pattern detected — polish structure and specificity."
+    if scores and avg < 6.5 and not recurring:
+        biggest_weakness = "Consistency: answers need fuller detail and clearer structure."
+
+    # Communication: only what the transcript signals actually show.
+    if tot_words:
+        communication = (f"Across {answered_n} answers ({tot_words} words): "
+                         f"{tot_fill} fillers, {tot_long} sentences over 25 words, "
+                         f"{tot_hedges} hedging words.")
+        if tot_fill / tot_words > 0.03:
+            communication += " Filler density is high — slow down and pause instead."
+        elif tot_words and tot_fill / tot_words <= 0.01:
+            communication += " Filler use is low — that is a real strength."
+    else:
+        communication = "No transcript signals were captured for this session."
+
+    top_issue = recurring[0] if recurring else ""
+    training = [ISSUE_TRAINING[i] for i in recurring if i in ISSUE_TRAINING][:2]
+    if len(training) < 2 and scores and avg < 7.0:
+        training.append("Practice one 2-minute STAR answer with a single concrete example.")
+    if not training:
+        training = ["Repeat your strongest answer structure across two more questions.",
+                    "Record yourself once and check pace and clarity."]
+    training = training[:3]
+
+    summary = (f"{coverage_note} Average score {avg}/10."
+               + (f" Strongest answer scored {per_answer[0][0]}/10." if per_answer else "")
+               + f" Main focus: {biggest_weakness}")
+
+    role_alignment = (f"Tie answers to the role requirements explicitly ({answered_n} answers assessed)."
+                      if jd_text else
+                      "No JD/resume provided — answers were not compared to a target role description.")
+    return {
+        "summary": summary,
+        "strengths": strengths,
+        "biggest_weakness": biggest_weakness,
+        "communication": communication,
+        "technical": "Depth was judged per question — see the question-by-question analysis.",
+        "role_alignment": role_alignment,
+        "training": training,
+        "top_priority": ISSUE_TEXT.get(top_issue, biggest_weakness) if top_issue else biggest_weakness,
+        "next_practice": ISSUE_PRACTICE.get(top_issue, "Spontaneous Q&A") if top_issue else "Spontaneous Q&A",
+    }

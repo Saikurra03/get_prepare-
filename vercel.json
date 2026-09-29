@@ -12,6 +12,7 @@
     { "source": "/mock", "destination": "/mock.html" },
     { "source": "/qbank", "destination": "/qbank.html" },
     { "source": "/report", "destination": "/report.html" },
+    { "source": "/result", "destination": "/result.html" },
     { "source": "/progress", "destination": "/progress.html" },
     { "source": "/history", "destination": "/history.html" },
     { "source": "/profile", "destination": "/profile.html" },

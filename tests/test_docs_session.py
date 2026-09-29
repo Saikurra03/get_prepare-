@@ -1,7 +1,7 @@
 """Docs extraction, session persistence, profile, API failure paths."""
 import sys, os, io
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-os.environ["DATA_DIR"] = os.path.join(os.path.dirname(__file__), "..", "backend", "data")
+# DATA_DIR is isolated to a temp dir by tests/conftest.py — never write real history.
 from backend.app.documents import extractor
 from backend.app.session import manager as store
 from backend.app.ai import service

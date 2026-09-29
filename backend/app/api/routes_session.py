@@ -32,8 +32,31 @@ def profile():
 
 @router.get("/list")
 def list_all():
-    return {"sessions": [{k: s[k] for k in ("id", "kind", "status", "meta") if k in s}
-                         for s in store.list_sessions()]}
+    """Compact list of real sessions: date, type, question counts, score, report flag.
+
+    Deliberately slim — full meta (questions/context/jd) and answers live on /detail.
+    """
+    SKIP_MARKERS = ("[skipped]", "[topic changed]")
+    out = []
+    for s in store.list_sessions():
+        meta = s.get("meta") or {}
+        turns = s.get("turns") or []
+        answered = sum(1 for t in turns if t.get("answer") and t.get("answer") not in SKIP_MARKERS)
+        total = meta.get("num_questions") or sum(1 for t in turns if t.get("question")) or None
+        report = s.get("report")
+        out.append({
+            "id": s.get("id"),
+            "kind": s.get("kind"),
+            "status": s.get("status"),
+            "created": s.get("created"),
+            "meta": {k: meta[k] for k in ("type", "scenario", "role", "difficulty")
+                     if meta.get(k) not in (None, "")},
+            "num_questions": total,
+            "answered": answered,
+            "score": (report or {}).get("overall"),
+            "has_report": bool(report),
+        })
+    return {"sessions": out}
 
 @router.get("/detail")
 def detail(sid: str):

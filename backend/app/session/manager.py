@@ -141,11 +141,13 @@ def finish_session(sid: str, report: dict | None = None) -> dict | None:
         s = get_session(sid)
         if not s:
             return None
+        already_finished = s.get("status") == "finished" and s.get("report") is not None
         s["status"] = "finished"
         if report is not None:
             s["report"] = report
         _save_session(s)
-        if report or s.get("turns"):
+        # Profile is a running aggregate — never count the same session twice.
+        if not already_finished and (report or s.get("turns")):
             update_profile_from_session(s)
     return s
 
@@ -200,7 +202,9 @@ def update_profile_from_session(session: dict) -> dict:
     issues: dict[str, int] = profile.get("recurring_patterns", {})
     for t in session.get("turns", []):
         iss = t.get("issue") or (t.get("evaluation") or {}).get("main_issue")
-        if iss:
+        # Only canonical short tokens count as "patterns" — one-off AI sentences
+        # (free feedback text) must not pollute the profile.
+        if iss and len(iss) <= 40:
             issues[iss] = issues.get(iss, 0) + 1
     profile["recurring_patterns"] = issues
     if issues:

@@ -11,6 +11,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from backend.app.engines import interview as eng
 from backend.app.engines import question_source
+from backend.app.engines import speech_analysis as sa
 from backend.app.engines import visual_analysis as vis
 from backend.app.documents import context_builder
 from backend.app.session import manager as store
@@ -98,39 +99,80 @@ def _persist_meta(session_id: str, meta: dict) -> None:
             if ss["id"] == raw_id:
                 ss["meta"] = meta
                 break
+        else:
+            log.warning("persist_meta: session %s not found in storage", raw_id)
         _save("sessions.json", sessions)
 
 
 def _analyze_turn_job(session_id: str, tid: str, question: str, answer: str,
                       itype: str, diff: str, ctx: str, visual_events: list) -> None:
     """Background analysis for one answer: evaluation + visual + coaching + model answer.
-    Runs after the /answer response is sent — never blocks the interview flow."""
+    Runs after the /answer response is sent — never blocks the interview flow.
+
+    Each stage is guarded separately: a failure in coaching/model/visual can never
+    throw away an evaluation that was already computed successfully."""
     t0 = time.perf_counter()
     try:
-        ev = eng.evaluate_answer(question, answer, itype, diff)
-        visual_result = vis.analyze_visuals(visual_events, question, answer, itype, diff)
-        if visual_result.get("score_impact", 0):
-            ev["score"] = max(1.0, min(10.0, ev.get("score", 5) + visual_result["score_impact"]))
-        coaching = eng.generate_coaching(question, answer, ev, itype, diff)
-        model = eng.generate_model_answer(question, answer, itype, ctx, diff)
-        store.update_turn(session_id, tid, {
-            "evaluation": ev,
-            "coaching": coaching,
-            "model_answer": model.get("model_answer", ""),
-            "visual_coaching": visual_result.get("coaching", ""),
-            "analysis_pending": False,
-        })
+        # 1) Evaluation — the one thing the report cannot work without.
+        try:
+            ev = eng.evaluate_answer(question, answer, itype, diff)
+        except Exception:
+            log.exception("evaluate_answer failed for turn %s — scoring from transcript signals", tid)
+            sig = sa.analyze(answer)
+            score = max(3.0, min(8.5, 7.0 - 0.4 * sig.get("filler_total", 0)))
+            ev = {"score": round(score, 1), "strength": "answered the question",
+                  "main_issue": sa.top_issue(sig), "retry_suggested": score < 6.5,
+                  "retry_instruction": "Retry leading with your main point in 10 seconds.",
+                  "good": ["answered the question"], "biggest_issue": sa.top_issue(sig),
+                  "relevance": {"verdict": "partially", "note": "Scored from transcript signals."},
+                  "sentences": [], "better_examples": [], "dimensions": {},
+                  "vocabulary": "", "fillers": "", "pacing": "", "completeness": "",
+                  "technical": "n/a", "articulation": "unavailable", "pronunciation": "unavailable",
+                  "signals": sig, "provider": "offline"}
+
+        # 2) Visual analysis (optional enrichment — score impact only).
+        visual_result: dict = {}
+        try:
+            visual_result = vis.analyze_visuals(visual_events, question, answer, itype, diff)
+            if visual_result.get("score_impact", 0):
+                ev["score"] = max(1.0, min(10.0, ev.get("score", 5) + visual_result["score_impact"]))
+        except Exception:
+            log.exception("visual analysis failed for turn %s (evaluation kept)", tid)
+
+        # 3) Coaching + model answer (optional enrichment).
+        coaching = None
+        try:
+            coaching = eng.generate_coaching(question, answer, ev, itype, diff)
+        except Exception:
+            log.exception("coaching generation failed for turn %s (evaluation kept)", tid)
+        model = ""
+        try:
+            model = eng.generate_model_answer(question, answer, itype, ctx, diff).get("model_answer", "")
+        except Exception:
+            log.exception("model answer generation failed for turn %s (evaluation kept)", tid)
+
+        payload = {"evaluation": ev, "analysis_pending": False}
+        if coaching is not None:
+            payload["coaching"] = coaching
+        if model:
+            payload["model_answer"] = model
+        if visual_result:
+            payload["visual_coaching"] = visual_result.get("coaching", "")
+        store.update_turn(session_id, tid, payload)
     except Exception:
-        # Never leave a turn stuck pending — clear with a stub so the report can proceed.
+        # Absolute last resort — never leave a turn stuck pending.
         log.exception("background analysis failed for turn %s", tid)
         try:
+            sig = sa.analyze(answer)
             store.update_turn(session_id, tid, {
-                "evaluation": {"score": 5, "strength": "", "main_issue": "analysis unavailable",
+                "evaluation": {"score": max(1.0, min(8.5, 7.0 - 0.4 * sig.get("filler_total", 0))),
+                               "strength": "", "main_issue": "analysis unavailable",
                                "good": [], "biggest_issue": "analysis unavailable",
                                "relevance": {"verdict": "partially", "note": ""},
                                "dimensions": {}, "vocabulary": "", "fillers": "",
                                "pacing": "", "completeness": "", "technical": "n/a",
-                               "articulation": "unavailable", "pronunciation": "unavailable"},
+                               "articulation": "unavailable", "pronunciation": "unavailable",
+                               "signals": sig},
                 "coaching": {"appreciation": "", "priority": "", "specific_feedback": "",
                              "improvement": "", "next_step": ""},
                 "model_answer": "",
@@ -372,6 +414,8 @@ def _persist_turns(session_id: str, turns: list[dict]) -> None:
             if ss["id"] == raw_id:
                 ss["turns"] = turns
                 break
+        else:
+            log.warning("persist_turns: session %s not found in storage — write skipped", raw_id)
         _save("sessions.json", sessions)
 
 
@@ -379,12 +423,22 @@ def _persist_turns(session_id: str, turns: list[dict]) -> None:
 def finish(inp: AnswerIn):
     if not store.get_session(inp.session_id):
         return {"error": "interview session not found", "code": "no_session"}
+    # Never race an in-flight /answer — wait for it so no answer is left out.
+    deadline = time.time() + 10.0
+    while _in_flight.get(inp.session_id) and time.time() < deadline:
+        time.sleep(0.1)
     # Wait for background analysis of every answered turn (evaluation, coaching,
     # model answer, visual analysis) before building the report.
     _join_pending(inp.session_id)
     s = store.get_session(inp.session_id)
     if not s:
         return {"error": "interview session not found", "code": "no_session"}
+    # Idempotent: a finished session with a report is returned as-is
+    # (re-running would double-count the profile).
+    if s.get("status") == "finished" and s.get("report"):
+        done_n = sum(1 for t in s.get("turns", []) if t.get("answer"))
+        return {"session_id": inp.session_id, "report": s["report"],
+                "turns": done_n, "already_finished": True}
     # Fallback: jobs lost (e.g. server restart) — run remaining analysis synchronously.
     for t in s.get("turns", []):
         if t.get("analysis_pending") and t.get("tid"):
@@ -392,6 +446,22 @@ def finish(inp: AnswerIn):
                               t.get("answer", ""), s["meta"].get("type", "mixed"),
                               s["meta"].get("difficulty", "intermediate"),
                               s["meta"].get("context", ""), t.get("visual_events", []))
+    # Reload so turns written by those jobs are visible, then guarantee coverage:
+    # every answered (non-skipped) question must carry an evaluation.
+    s = store.get_session(inp.session_id) or s
+    needs = [t for t in s.get("turns", [])
+             if t.get("answer") and t.get("answer") not in ("[skipped]", "[topic changed]")
+             and not t.get("evaluation")]
+    if any(not t.get("tid") for t in needs):
+        for t in needs:
+            if not t.get("tid"):
+                t["tid"] = uuid.uuid4().hex[:10]
+        _persist_turns(inp.session_id, s.get("turns", []))
+    for t in needs:
+        _analyze_turn_job(inp.session_id, t["tid"], t.get("question", ""), t.get("answer", ""),
+                          s["meta"].get("type", "mixed"),
+                          s["meta"].get("difficulty", "intermediate"),
+                          s["meta"].get("context", ""), t.get("visual_events", []))
     s = store.get_session(inp.session_id) or s
     done = [t for t in s.get("turns", []) if t.get("answer")]
     # Build per-question details for the report

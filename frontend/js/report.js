@@ -23,7 +23,7 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
 
       // Score
       const scoreHtml = isSkipped
-        ? `<span class="score" style="background:var(--warn);color:#000">Skipped</span>`
+        ? `<span class="score" style="background:var(--warn);color:#fff">Skipped</span>`
         : `<span class="score">${ev.score ?? "—"}/10</span>`;
 
       // Strengths
@@ -173,7 +173,10 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
     </div>
     <div class="grid g2 mt">
       <div class="card"><h3>Best answer</h3><div class="small">${esc(r.best_answer?.question || "—")} <span class="score">${r.best_answer?.score ?? ""}</span></div></div>
-      <div class="card"><h3>Weakest answer</h3><div class="small">${esc(r.weakest_answer?.question || "—")}<br/><span class="dim">Issue: ${esc(r.weakest_answer?.issue || "—")}</span></div></div>
+      <div class="card"><h3>Weakest answer</h3><div class="small">${
+        r.weakest_answer?.tied
+          ? `<span class="dim">No single weakest answer — every scored answer tied at ${r.weakest_answer?.score ?? r.best_answer?.score ?? "—"}/10.</span>`
+          : `${esc(r.weakest_answer?.question || "—")}<br/><span class="dim">Issue: ${esc(r.weakest_answer?.issue || "—")}</span>`}</div></div>
     </div>
     ${questionHtml}
     ${sec("Communication", esc(r.communication || ""))}

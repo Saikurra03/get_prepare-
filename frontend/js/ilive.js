@@ -1,7 +1,7 @@
 /* Live Interview: clean flow — question → answer → next question. All feedback at the end. */
 const sid = new URLSearchParams(location.search).get("sid");
 if (!sid) location.href = "/interview";
-const page = buildShell("Interview", "BERREADY / Interview / Live");
+document.body.classList.add("il-root");
 const media = createMedia();
 const visual = createVisualSampler();
 let answered = 0, t0 = Date.now(), tick = null, submitting = false;
@@ -10,40 +10,78 @@ let _lastBlobUrl = null;
 let _lastAudioEl = null;
 let _autoRead = prefs.get("autoRead", true);
 
-page.innerHTML = `
-  <div class="card mb"><div class="row"><div><div class="small dim" id="ivMeta">Preparing…</div>
-    <div class="question" id="q" style="margin-top:4px">Loading your interview…</div>
-    <div class="row" style="gap:4px;margin-top:6px">
-      <button class="ghost" id="bSpeak" title="Read this question aloud">🔊 Read aloud</button>
-      <label class="small dim" style="display:flex;align-items:center;gap:4px;cursor:pointer">
-        <input type="checkbox" id="cbAutoRead" ${_autoRead ? "checked" : ""} style="margin:0"/> Auto-read
-      </label>
-    </div>
-    <div class="small mut" id="bridge"></div></div><span style="flex:1"></span>
-    <div style="text-align:right">
-      <div class="timer" id="tm" style="font-size:18px">00:00</div>
-      <div class="small dim" id="cnt"></div>
-      <div class="row" style="gap:4px;margin-top:4px;justify-content:flex-end">
-        <button class="ghost" id="bSkip" title="Skip this question">⏭ Skip</button>
-        <button class="ghost" id="bChangeTopic" title="Switch to a different topic">🔄 New Topic</button>
+/* Immersive full-viewport room — no app shell (Zoom/Meet-style). */
+document.body.innerHTML = `
+<div class="il">
+  <header class="il-top">
+    <span class="il-brand">BERREADY</span>
+    <span class="il-mode">Live interview</span>
+    <span class="il-spacer"></span>
+    <span class="il-pill" id="ivAI">AI…</span>
+    <span class="il-pill" id="cnt">Question 1 of 5</span>
+    <span class="timer il-timer" id="tm">00:00</span>
+    <button class="icon-btn" id="bTheme" title="Switch theme">☾</button>
+    <button class="danger" id="bEnd">End interview</button>
+  </header>
+  <div class="il-body">
+    <section class="il-stage">
+      <div class="il-q-label">Interviewer</div>
+      <div class="il-q" id="q">Loading your interview…</div>
+      <div class="il-bridge small mut" id="bridge"></div>
+      <div class="row il-read">
+        <button class="ghost" id="bSpeak" title="Read this question aloud">🔊 Read aloud</button>
+        <label class="small dim" style="display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" id="cbAutoRead" ${_autoRead ? "checked" : ""} style="margin:0"/> Auto-read
+        </label>
       </div>
-    </div></div></div>
-  <div class="live"><div><video class="cam" id="v" autoplay muted playsinline></video>
-    <div class="statusbar"><span><span class="dot" id="dCam"></span>Camera</span>
-    <span><span class="dot" id="dMic"></span>Mic</span>
-    <span><span class="dot rec" id="dRec" style="display:none"></span><span id="recT">● idle</span></span></div>
-    <div class="row"><button id="bCam">Camera</button><button id="bMic">Mic</button></div></div>
-    <div><div class="card"><div class="small dim" id="ansLabel">Your answer — speak or type</div>
-      <div class="transcript" id="tx" contenteditable="true">…</div>
-      <div class="row mt">
+      <div class="il-meta" id="ivMeta">Preparing…</div>
+    </section>
+    <aside class="il-side">
+      <video class="il-video" id="v" autoplay muted playsinline></video>
+      <div class="statusbar">
+        <span><span class="dot" id="dCam"></span>Camera</span>
+        <span><span class="dot" id="dMic"></span>Mic</span>
+        <span><span class="dot rec" id="dRec" style="display:none"></span><span id="recT">● idle</span></span>
+      </div>
+      <div class="row"><button id="bCam">Camera</button><button id="bMic">Mic</button></div>
+      <div class="il-hint">Speak or type your answer below — nothing is shown mid-interview;
+        all coaching lands in the final report.</div>
+    </aside>
+  </div>
+  <footer class="il-bottom">
+    <div class="il-ansrow">
+      <div class="il-ans">
+        <div class="small dim" id="ansLabel">Your answer — speak or type</div>
+        <div class="il-tx" id="tx" contenteditable="true">…</div>
+      </div>
+      <div class="il-ctrls">
         <button class="primary" id="bRecord">🎙️ Start Recording</button>
         <button class="primary" id="bStopRecord" style="display:none">■ Stop & Transcribe</button>
         <button class="primary" id="bTalk">🎤 Browser STT</button>
         <button class="primary" id="bSend">Submit answer</button>
+        <button class="ghost" id="bSkip" title="Skip this question">⏭ Skip</button>
+        <button class="ghost" id="bChangeTopic" title="Switch to a different topic">🔄 New Topic</button>
       </div>
-      <div id="sttStatus" class="small mut mt"></div>
-      <div id="statusMsg" class="small mt"></div></div>
-      <div class="row mt"><button class="danger" id="bEnd">End interview</button></div></div></div>`;
+    </div>
+    <div class="il-status">
+      <span id="sttStatus" class="small mut"></span>
+      <span id="statusMsg" class="small"></span>
+    </div>
+  </footer>
+</div>`;
+
+if (window.theme) theme.mount(document.getElementById("bTheme"));
+
+/* --- AI status pill (same behaviour as the shell's, self-hosted) --- */
+async function refreshAI() {
+  const el = document.getElementById("ivAI");
+  if (!el) return;
+  try {
+    const st = await api.status();
+    el.textContent = st.ai_ready ? `${st.active_provider || "AI"} ready` : "AI offline";
+  } catch { el.textContent = "server unreachable"; }
+}
+refreshAI(); setInterval(refreshAI, 20000);
 
 tick = setInterval(() => { const el = document.getElementById("tm"); if (el) el.textContent = fmtDur(Date.now() - t0); }, 500);
 
@@ -270,7 +308,7 @@ async function endInterview() {
   if (_lastAudioEl) { try { _lastAudioEl.pause(); } catch {} _lastAudioEl = null; }
   if (_lastBlobUrl) { try { URL.revokeObjectURL(_lastBlobUrl); } catch {} _lastBlobUrl = null; }
   try { await api.finishInterview(sid); } catch {}
-  location.href = `/report?sid=${sid}`;
+  location.href = `/result?sid=${sid}`;
 }
 document.getElementById("bEnd").onclick = endInterview;
 

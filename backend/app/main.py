@@ -73,6 +73,13 @@ async def track_activity(request: Request, call_next):
             pass
     return response
 
+@app.middleware("http")
+async def no_cache_static(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.endswith((".css", ".js", ".html")):
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return response
+
 app.include_router(routes_coach.router)
 app.include_router(routes_documents.router)
 app.include_router(routes_interview.router)
@@ -95,7 +102,8 @@ PAGES = {
     "interview-live": "ilive.html",
     "mock": "mock.html",            # Full-screen mock interview room (all 12 modes)
     "qbank": "qbank.html",          # Your own question list (upload/paste)
-    "report": "report.html",         # Interview report
+    "report": "report.html",         # Interview report (question-by-question analysis)
+    "result": "result.html",         # Compact post-interview results
     "progress": "progress.html",     # Progress Overview
     "history": "history.html",       # Session History
     "profile": "profile.html",       # Communication Profile
@@ -180,13 +188,8 @@ def status():
 
 if os.path.isdir(FRONTEND):
     # Serve JS/CSS/images from root AND /static (Netlify uses root paths).
-    from starlette.applications import Starlette
-    _static_app = Starlette(routes=[
-        # Mount static files at both /static and root
-    ])
     app.mount("/static", StaticFiles(directory=FRONTEND), name="static")
     app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND, "js")), name="js")
-    app.mount("/css", StaticFiles(directory=FRONTEND), name="css")
 
     @app.get("/")
     def index():
@@ -194,6 +197,13 @@ if os.path.isdir(FRONTEND):
 
     @app.get("/{page}")
     def page(page: str):
-        if page not in PAGES or page == "":
-            raise HTTPException(status_code=404)
-        return FileResponse(os.path.join(FRONTEND, PAGES[page]))
+        if page in PAGES and page != "":
+            return FileResponse(os.path.join(FRONTEND, PAGES[page]))
+        # Root-level static assets (styles.css, …). Single path segment only,
+        # basename() guards against traversal via decoded separators.
+        name = os.path.basename(page)
+        if name == page and name and not name.startswith("."):
+            f = os.path.join(FRONTEND, name)
+            if os.path.isfile(f):
+                return FileResponse(f)
+        raise HTTPException(status_code=404)
