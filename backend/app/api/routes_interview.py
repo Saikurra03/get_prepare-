@@ -115,7 +115,7 @@ def _analyze_turn_job(session_id: str, tid: str, question: str, answer: str,
     try:
         # 1) Evaluation — the one thing the report cannot work without.
         try:
-            ev = eng.evaluate_answer(question, answer, itype, diff)
+            ev = eng.evaluate_answer(question, answer, itype, diff, context=ctx)
         except Exception:
             log.exception("evaluate_answer failed for turn %s — scoring from transcript signals", tid)
             sig = sa.analyze(answer)
@@ -134,7 +134,10 @@ def _analyze_turn_job(session_id: str, tid: str, question: str, answer: str,
         visual_result: dict = {}
         try:
             visual_result = vis.analyze_visuals(visual_events, question, answer, itype, diff)
-            if visual_result.get("score_impact", 0):
+            # Self Introduction scores are transcript-based only (items 27/29) —
+            # video never changes the score. Visual coaching text still shows
+            # when valid camera data exists (item 28).
+            if itype != "selfintro" and visual_result.get("score_impact", 0):
                 ev["score"] = max(1.0, min(10.0, ev.get("score", 5) + visual_result["score_impact"]))
         except Exception:
             log.exception("visual analysis failed for turn %s (evaluation kept)", tid)
@@ -206,6 +209,9 @@ def parse_questions(inp: ParseIn):
 
 @router.post("/plan")
 def plan(inp: PlanIn):
+    # Self Introduction is a fixed single-question session (item 5).
+    if inp.interview_type == "selfintro":
+        inp.num_questions = 1
     docs = store.get_documents(inp.doc_ids) if inp.doc_ids else store.list_documents(section="interview")
     ctx = context_builder.build_context(docs)
     jd_text = " ".join(d.get("text", "") for d in docs if d.get("kind") == "jd")

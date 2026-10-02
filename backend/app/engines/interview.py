@@ -4,11 +4,13 @@ from __future__ import annotations
 import random
 from backend.app.ai import service
 from backend.app.engines import speech_analysis as sa
+from backend.app.engines import selfintro
 
-TYPES = ["hr", "technical", "project", "behavioral", "resume", "jd", "topic", "mixed", "custom"]
+TYPES = ["selfintro", "hr", "technical", "project", "behavioral", "resume", "jd", "topic", "mixed", "custom"]
 DIFFICULTIES = ["beginner", "intermediate", "advanced", "expert"]
 
 BASE_QUESTIONS = {
+    "selfintro": ["Tell me about yourself."],
     "hr": ["Tell me about yourself in 60 seconds.", "Why this role?", "What is your biggest strength?"],
     "technical": ["Explain a technical concept you know well simply.", "How would you debug a failing system?"],
     "project": ["Walk me through your most important project and YOUR contribution.", "What was the hardest bug and how did you fix it?"],
@@ -22,6 +24,18 @@ BASE_QUESTIONS = {
 
 # Type-specific system instructions for plan generation
 TYPE_PLAN_INSTRUCTIONS = {
+    "selfintro": (
+        "Generate EXACTLY ONE question and nothing else: the candidate simply "
+        "introduces themselves (who they are, education/status, key skills, one "
+        "project, career goal). Allowed forms only: 'Tell me about yourself.', "
+        "'Can you briefly introduce yourself?', 'Tell me about yourself in a "
+        "short and concise way.', 'Please give me a brief introduction about "
+        "yourself.', 'Could you introduce yourself and briefly mention your "
+        "education, key skills, and interests?'. "
+        "STRICTLY FORBIDDEN: resume walkthroughs, follow-up questions, questions "
+        "about past experiences/challenges/projects/why something happened, "
+        "behavioral or HR-style questions — this is never a follow-up."
+    ),
     "hr": (
         "You are a senior HR interviewer. Generate questions about: self-introduction, "
         "career motivation, strengths/weaknesses, teamwork, conflict resolution, "
@@ -177,6 +191,13 @@ DIFF_MODEL_STYLE = {
 
 # Type-specific evaluation instructions
 TYPE_EVAL_INSTRUCTIONS = {
+    "selfintro": (
+        "Handled by the SEPARATE self-introduction evaluator (engines/selfintro.py): "
+        "six fixed dimensions (structure, clarity, relevance, technical accuracy, "
+        "conciseness, delivery), fresher framing (who I am, education, key skills, "
+        "one project, career goal), content coverage detection, and what-to-skip "
+        "checks. Judge from the transcript only — never body language."
+    ),
     "hr": (
         "Evaluate for HR criteria: confidence, clarity of self-presentation, "
         "relevant experience, cultural fit indicators, communication style, "
@@ -226,6 +247,7 @@ TYPE_EVAL_INSTRUCTIONS = {
 
 # Type-specific next-question instructions
 TYPE_FOLLOWUP_INSTRUCTIONS = {
+    "selfintro": "No follow-up — this is a single-question self-introduction session.",
     "hr": "Ask a follow-up about their motivation, self-awareness, or how they handle specific workplace situations.",
     "technical": "Ask a deeper technical question — probe for implementation details, trade-offs, or alternative approaches.",
     "project": "Ask about a specific technical decision, outcome metric, or what they would change if they did it again.",
@@ -241,6 +263,9 @@ TYPE_FOLLOWUP_INSTRUCTIONS = {
 def build_plan(interview_type: str, difficulty: str, context: str,
                signals: dict | None = None, num_questions: int = 5) -> dict:
     interview_type = interview_type if interview_type in TYPES else "mixed"
+    if interview_type == "selfintro":
+        # Separate plan: exactly one validated self-introduction question.
+        return selfintro.build_plan(difficulty, context)
     seeds = list(BASE_QUESTIONS[interview_type])
     type_instructions = TYPE_PLAN_INSTRUCTIONS.get(interview_type, TYPE_PLAN_INSTRUCTIONS["mixed"])
 
@@ -256,7 +281,8 @@ def build_plan(interview_type: str, difficulty: str, context: str,
         "Increase depth as questions progress. "
         "Each question must have a topic label (short category like 'self-intro', 'technical-depth', "
         "'behavioral-star', 'project-ownership', 'skills-alignment', etc.). "
-        "Spread questions across different topics — at least 3 different topics. "
+        + ("Spread questions across different topics — at least 3 different topics. "
+           if num_questions > 1 else "Use the topic label 'self-intro'. ") +
         "Reply JSON: {\"role\": str, \"focus\": [str], \"questions\": [{\"q\": str, \"topic\": str}]}"
     )
     try:
@@ -329,6 +355,10 @@ def generate_coaching(question: str, answer: str, evaluation: dict, interview_ty
     """Generate supportive coaching feedback. Adapts tone and depth to difficulty level."""
     interview_type = interview_type if interview_type in TYPES else "mixed"
     difficulty = difficulty if difficulty in DIFFICULTIES else "intermediate"
+    if interview_type == "selfintro":
+        # Derived from the self-introduction evaluation itself — no generic HR
+        # coaching prompt, no extra AI call (separate feedback system).
+        return {**selfintro.coaching(evaluation), "provider": "offline"}
     score = evaluation.get("score", 5)
     strengths = evaluation.get("good", [])
     main_issue = evaluation.get("main_issue", "")
@@ -481,6 +511,10 @@ def generate_model_answer(question: str, answer: str, interview_type: str, conte
     Answer must sound like natural interview speech — flowing, confident, human."""
     interview_type = interview_type if interview_type in TYPES else "mixed"
     difficulty = difficulty if difficulty in DIFFICULTIES else "intermediate"
+    if interview_type == "selfintro":
+        # No canned "model answer" for self-introductions: generic examples
+        # invent projects/employers the candidate never mentioned.
+        return {"model_answer": ""}
     style = DIFF_MODEL_STYLE.get(difficulty, DIFF_MODEL_STYLE["intermediate"])
 
     type_hints = {
@@ -632,11 +666,15 @@ def _offline_model_answer(question: str, interview_type: str, difficulty: str = 
 
 
 def evaluate_answer(question: str, answer: str, interview_type: str,
-                    difficulty: str = "intermediate") -> dict:
+                    difficulty: str = "intermediate", context: str = "") -> dict:
     """Live per-answer report. Adapts evaluation strictness to difficulty level.
     Audio-only metrics are marked unavailable, never invented."""
     interview_type = interview_type if interview_type in TYPES else "mixed"
     difficulty = difficulty if difficulty in DIFFICULTIES else "intermediate"
+    if interview_type == "selfintro":
+        # Separate evaluation system (engines/selfintro.py) — never the generic
+        # HR/behavioral/topic path. `question` is always "Tell me about yourself."
+        return selfintro.evaluate(answer, context=context, difficulty=difficulty)
     sig = sa.analyze(answer)
     type_eval = TYPE_EVAL_INSTRUCTIONS.get(interview_type, TYPE_EVAL_INSTRUCTIONS["mixed"])
     diff_tone = DIFF_EVAL_TONE.get(difficulty, DIFF_EVAL_TONE["intermediate"])
@@ -691,7 +729,7 @@ def evaluate_answer(question: str, answer: str, interview_type: str,
         if sig.get("long_sentences"):
             sent_fix = [{"problem": "one or more sentences run over 25 words",
                          "fix": "Split long sentences: one idea per sentence, then pause."}]
-        return {"score": round(score, 1), "strength": "addressed the question",
+        out = {"score": round(score, 1), "strength": "addressed the question",
                 "main_issue": sa.top_issue(sig), "retry_suggested": score < 6.5,
                 "retry_instruction": "Retry leading with your main point in 10 seconds.",
                 "good": ["addressed the question"], "biggest_issue": sa.top_issue(sig),
@@ -709,6 +747,7 @@ def evaluate_answer(question: str, answer: str, interview_type: str,
                 "technical": "n/a",
                 "articulation": "unavailable", "pronunciation": "unavailable",
                 "signals": sig, "provider": "offline"}
+        return out
 
 
 def final_report(history: list[dict], role: str, jd_text: str = "",
@@ -732,7 +771,12 @@ def final_report(history: list[dict], role: str, jd_text: str = "",
     # Per-question scores: every real answer that carries one contributes.
     scores = [float(h["evaluation"]["score"]) for h in real
               if h.get("evaluation") and h["evaluation"].get("score") is not None]
-    avg = round(sum(scores) / len(scores), 1) if scores else 0.0
+    # Self Introduction with no scored answer reports overall=None (the UI
+    # shows "—") instead of a fake 0.0.
+    if scores:
+        avg = round(sum(scores) / len(scores), 1)
+    else:
+        avg = None if interview_type == "selfintro" else 0.0
     answered_n = len(scores)
 
     if real:
@@ -791,15 +835,22 @@ def final_report(history: list[dict], role: str, jd_text: str = "",
         "\"top_priority\": str (single most important improvement), "
         "\"next_practice\": str (one concrete next session)}."
     )
-    try:
-        data, resp = service.generate_json(prompt)
-    except Exception:
-        data, resp = _derived_narrative(
-            real, avg, answered_n, skipped_n, recurring, worst,
-            tot_fill, tot_long, tot_words, tot_hedges, n_direct, len(verdicts),
-            jd_text, coverage_note), type("R", (), {"provider": "offline"})()
-    data.setdefault("top_priority", data.get("biggest_weakness", "—"))
-    data.setdefault("next_practice", "Practice")
+    if interview_type == "selfintro":
+        # Separate, deterministic self-introduction report: built only from the
+        # single answer's evaluation — no generic HR narrative and no AI drift
+        # (it can never hallucinate claims about skipped or missing answers).
+        data = selfintro.report_narrative(real, avg, coverage_note)
+        resp = type("R", (), {"provider": "offline"})()
+    else:
+        try:
+            data, resp = service.generate_json(prompt)
+        except Exception:
+            data, resp = _derived_narrative(
+                real, avg, answered_n, skipped_n, recurring, worst,
+                tot_fill, tot_long, tot_words, tot_hedges, n_direct, len(verdicts),
+                jd_text, coverage_note), type("R", (), {"provider": "offline"})()
+        data.setdefault("top_priority", data.get("biggest_weakness", "—"))
+        data.setdefault("next_practice", "Practice")
     processed = sum(1 for h in history if h.get("evaluation"))   # incl. skipped
     # A full tie (all real answers scored the same) means there is no honest
     # "weakest" — don't present the same question as both best and weakest.

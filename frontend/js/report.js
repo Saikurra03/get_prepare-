@@ -9,9 +9,32 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
   if (d.error || !d.report) { page.innerHTML = `<div class="card">Report not ready. <a href="/interview-live?sid=${sid}">Back to interview</a>.</div>`; return; }
   const r = d.report;
   const sec = (t, body) => body ? `<div class="card mt"><h3>${t}</h3><div class="small">${body}</div></div>` : "";
+  const isSelfintro = (d.meta?.type || "") === "selfintro";
+  const RUBRIC_LABELS = { structure: "Structure", clarity: "Clarity", relevance: "Relevance",
+    technical_accuracy: "Technical Accuracy", conciseness: "Conciseness",
+    delivery: "Professional delivery" };
+  const rubricRows = (rub) => Object.keys(RUBRIC_LABELS).map((k) => {
+    const v = rub[k];
+    const num = typeof v === "number" && isFinite(v);
+    return `${RUBRIC_LABELS[k]}: <b>${num ? Math.round(v * 10) / 10 : "n/a"}</b>`;
+  }).join(" · ");
+  const siFocusSkip = r.focus_skip || {};
+  const focusCard = isSelfintro && (siFocusSkip.say || siFocusSkip.avoid)
+    ? `<div class="card mt"><h3>Focus / skip</h3><div class="small">
+        ${siFocusSkip.say ? `<div><b style="color:var(--ok)">Say:</b> ${esc(siFocusSkip.say)}</div>` : ""}
+        ${siFocusSkip.avoid ? `<div><b style="color:var(--warn)">Skip:</b> ${esc(siFocusSkip.avoid)}</div>` : ""}
+      </div></div>`
+    : "";
+  const betterCard = isSelfintro && (r.better_approach || "").trim()
+    ? `<div class="card mt"><h3>Better approach</h3><div class="small">${esc(r.better_approach)}</div></div>`
+    : "";
 
   /* --- Per-question breakdown --- */
   const details = r.question_details || [];
+  const rubTop = (isSelfintro && details[0] && details[0].evaluation && details[0].evaluation.rubric)
+    ? `<div class="card mt"><h3>Six-dimension score</h3><div class="small">${rubricRows(details[0].evaluation.rubric)}</div>
+        <p class="small dim mt">Score = mean of the numeric dimensions (n/a excluded) — judged from the transcript only; video never changes it.</p></div>`
+    : "";
   let questionHtml = "";
   if (details.length) {
     const cards = details.map((qd, i) => {
@@ -48,6 +71,31 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
       if (gestures.length) visItems.push(`🤌 ${gestures.length} gestures`);
       const visHtml = visItems.length ? `<div class="small dim" style="margin-top:4px">📷 ${visItems.join(" · ")}</div>` : "";
 
+      // Self Introduction: rubric breakdown + fixed feedback (relabelled).
+      const siRub = ev.rubric ? `<div class="small mt"><b>Score breakdown:</b> ${rubricRows(ev.rubric)}
+        <span class="dim"> — mean of numeric dimensions, transcript only.</span></div>` : "";
+      const workedList = ev.what_worked || ev.strengths || [];
+      const fixList = ev.fix_next || ev.improvements || [];
+      const siFeedback =
+        (workedList.length ? `<div class="small mt" style="color:var(--ok)"><b>${isSelfintro ? "What worked" : "Strengths"}:</b> ${esc(workedList.join(" · "))}</div>` : "") +
+        (fixList.length ? `<div class="small mt" style="color:var(--warn)"><b>${isSelfintro ? "Fix next" : "Improvements"}:</b> ${esc(fixList.join(" · "))}</div>` : "") +
+        (ev.coaching_tip ? `<div class="small mt"><b>${isSelfintro ? "Coach's next step" : "Coaching tip"}:</b> ${esc(ev.coaching_tip)}</div>` : "");
+
+      // Self Introduction: content coverage + unnecessary-content skips.
+      const COV_KEYS = ["who_i_am", "education_status", "key_skills", "projects_achievements", "career_goal"];
+      const COV_LABELS = { who_i_am: "who you are", education_status: "education/status",
+        key_skills: "key skills", projects_achievements: "project/achievement", career_goal: "career goal" };
+      const cov = ev.coverage || {};
+      const hasCov = isSelfintro && COV_KEYS.some((k) => k in cov);
+      const covHit = COV_KEYS.filter((k) => cov[k]);
+      const covMiss = COV_KEYS.filter((k) => k in cov && !cov[k]);
+      const covLine = hasCov
+        ? `<div class="small dim mt">Coverage: ${covHit.map((k) => COV_LABELS[k]).join(", ") || "none"}${covMiss.length ? ` · missing: ${covMiss.map((k) => COV_LABELS[k]).join(", ")}` : " · all five elements covered"}</div>`
+        : "";
+      const skipIssues = (isSelfintro && (ev.skip_issues || []).length)
+        ? `<div class="small mt" style="color:var(--warn)"><b>Skip:</b> ${esc(ev.skip_issues.join(" · "))}</div>`
+        : "";
+
       // Coaching
       const coachingHtml = coaching.priority ? `
         <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:6px;padding:8px;margin-top:8px">
@@ -81,6 +129,10 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
               ${better ? `<div class="small mt"><b>Better way to say it:</b>${better}</div>` : ""}
               <div class="small dim mt">Clarity: ${esc(dims.clarity || "—")} · Conciseness: ${esc(dims.conciseness || "—")} · Specificity: ${esc(dims.specificity || "—")}</div>
               <div class="small dim">Vocabulary: ${esc(ev.vocabulary || "—")} · Fillers: ${esc(ev.fillers || "—")} · Pacing: ${esc(ev.pacing || "—")}</div>
+              ${siRub}
+              ${covLine}
+              ${skipIssues}
+              ${siFeedback}
               ${visHtml}
             ` : ""}
             ${coachingHtml}
@@ -166,9 +218,12 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
     <div class="card"><div class="small dim">${esc(d.meta?.role || "")} · ${esc(d.meta?.type || "")} · ${esc(fmtT(d.created))}</div>
       <h2>Overall: ${r.overall ?? "—"}/10 <span class="dim" style="font-size:13px;font-weight:400">(${r.answers_evaluated ?? 0} answers)</span></h2>
       <p>${esc(r.summary || "")}</p></div>
+    ${rubTop}
+    ${focusCard}
+    ${betterCard}
     ${dashHtml}
     <div class="grid g2 mt">
-      <div class="card"><h3>Strongest areas</h3><div class="small">${esc((r.strengths || []).join(" · ") || "—")}</div></div>
+      <div class="card"><h3>${isSelfintro ? "Strengths" : "Strongest areas"}</h3><div class="small">${esc((r.strengths || []).join(" · ") || "—")}</div></div>
       <div class="card"><h3>Biggest weakness</h3><div class="small">${esc(r.biggest_weakness || "—")}</div></div>
     </div>
     <div class="grid g2 mt">
@@ -183,12 +238,12 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
     ${visualHtml}
     ${sec("Technical performance", esc(r.technical || ""))}
     ${sec("Role alignment", esc(r.role_alignment || ""))}
-    ${sec("Recurring problems", esc((r.recurring_problems || []).join(" · ") || "—"))}
+    ${sec(isSelfintro ? "Main issue" : "Recurring problems", esc((r.recurring_problems || []).join(" · ") || "—"))}
     ${sec("Answer relevance", esc(r.relevance_summary || ""))}
     ${sec("Sentence & grammar patterns", esc(r.sentence_patterns || ""))}
     <div class="card mt"><h3>Most important improvement</h3><div class="small"><b>${esc(r.top_priority || r.biggest_weakness || "—")}</b></div></div>
-    <div class="card mt"><h3>Next training target</h3><div class="small">${(r.training || []).map((t) => `• ${esc(t)}`).join("<br/>") || "—"}
-    <br/>Recommended next session: <b>${esc(r.next_practice || "—")}</b></div>
+    <div class="card mt"><h3>${isSelfintro ? "Improvements" : "Next training target"}</h3><div class="small">${(r.training || []).map((t) => `• ${esc(t)}`).join("<br/>") || "—"}
+    <br/>${isSelfintro ? "Coach's next step" : "Recommended next session"}: <b>${esc(r.next_practice || "—")}</b></div>
       <div class="row mt"><a class="btn primary" href="/practice">Train now</a>
       <a class="btn ghost" href="/history">All sessions</a></div></div>`;
 })();

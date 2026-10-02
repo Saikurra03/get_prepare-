@@ -1,5 +1,6 @@
 /* Interview Coach: clean landing. Click a type → navigate to Preparation with type pre-selected. */
 const ITYPES = [
+  ["selfintro", "Self Introduction", "One 'Tell me about yourself' answer — scored on Structure, Clarity, Relevance, Technical Accuracy, Conciseness and Delivery.", "Resume optional."],
   ["hr", "HR Interview", "Confidence, clarity, storytelling.", "Presence and relevance."],
   ["technical", "Technical Interview", "Correctness + clear explanation.", "Reasoning out loud."],
   ["project", "Project Interview", "Your work, decisions, outcomes.", "Ownership and depth."],
@@ -49,9 +50,13 @@ let DOC_MAP = {};
 
 function renderTypes() {
   document.getElementById("types").innerHTML = ITYPES.map(([k, t, d, f]) => {
-    const need = k === "resume" ? "resume" : k === "jd" ? "jd" : k === "topic" ? "any" : null;
+    const need = k === "selfintro" ? "optional" : k === "resume" ? "resume" : k === "jd" ? "jd" : k === "topic" ? "any" : null;
     let badge = "";
-    if (need === "resume") {
+    if (need === "optional") {
+      badge = DOC_MAP.resume
+        ? `<span class="pill ok">Resume ready</span>`
+        : `<span class="pill">Resume optional</span>`;
+    } else if (need === "resume") {
       badge = DOC_MAP.resume
         ? `<span class="pill ok">Resume ready</span>`
         : `<span class="pill warn">Resume needed</span>`;

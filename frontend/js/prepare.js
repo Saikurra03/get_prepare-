@@ -2,11 +2,13 @@
    Documents are scoped per interview type so Resume-Based docs don't appear in Topic-Based, etc. */
 const qs = new URLSearchParams(location.search);
 const selType = qs.get("type") || "mixed";
-const TYPES = ["hr", "technical", "project", "behavioral", "resume", "jd", "topic", "mixed", "custom"];
+const TYPES = ["selfintro", "hr", "technical", "project", "behavioral", "resume", "jd", "topic", "mixed", "custom"];
 const KIND_LABEL = { jd: "Job Description", resume: "Resume / CV", topic: "Topic", document: "Other" };
 const ACCEPT_EXT = ".pdf,.docx,.txt,.md,.csv,.json,.py,.java,.js,.ts,.sql,.html,.css,.ppt,.pptx,.rtf";
+const N_OPTIONS = `<option>3</option><option selected>5</option><option>7</option><option>10</option><option>15</option><option>20</option>`;
 
 const TYPE_META = {
+  selfintro:    { label: "Self Introduction",        tip: "One 'Tell me about yourself' answer, scored on Structure, Clarity, Relevance, Technical Accuracy, Conciseness and Delivery. A resume is optional — include one for more specific feedback.", needDoc: "optional", acceptKind: "resume" },
   hr:          { label: "HR Interview",           tip: "Focus on presence, clarity, and storytelling. The AI will test how you present yourself.", needDoc: null,      acceptKind: null },
   technical:   { label: "Technical Interview",     tip: "Focus on correctness and reasoning out loud. Explain your thought process step by step.", needDoc: null,      acceptKind: null },
   project:     { label: "Project Interview",       tip: "Focus on ownership, decisions, and outcomes. Be specific about YOUR contribution.",     needDoc: null,      acceptKind: null },
@@ -45,9 +47,7 @@ page.innerHTML = `
           ${["beginner", "intermediate", "advanced", "expert"].map((d) => `<option ${d === prefs.get("diff", "intermediate") ? "selected" : ""}>${d}</option>`).join("")}
         </select>
         <label class="fl">Number of questions</label>
-        <select id="s_n" style="width:100%">
-          <option>3</option><option selected>5</option><option>7</option><option>10</option><option>15</option><option>20</option>
-        </select>
+        <select id="s_n" style="width:100%">${N_OPTIONS}</select>
       </div>
     </div>
 
@@ -81,6 +81,15 @@ function updateTip() {
   document.getElementById("typeTip").textContent = meta.tip;
   document.getElementById("customBox").style.display = type === "custom" ? "" : "none";
   document.getElementById("docCard").style.display = meta.needDoc ? "" : "none";
+  // Self Introduction is a fixed single-question session (item 24).
+  const nSel = document.getElementById("s_n");
+  if (type === "selfintro") {
+    nSel.innerHTML = `<option selected>1</option>`;
+    nSel.disabled = true;
+  } else if (nSel.disabled) {
+    nSel.innerHTML = N_OPTIONS;
+    nSel.disabled = false;
+  }
   renderDocSection();
 }
 
@@ -90,6 +99,8 @@ document.getElementById("s_type").onchange = () => { updateTip(); refreshDocs();
 function getDocSection() {
   const type = getSelectedType();
   const meta = TYPE_META[type];
+  // Optional-resume types share the resume scope so one upload serves both.
+  if (meta.needDoc === "optional") return `interview_${meta.acceptKind || "general"}`;
   if (!meta.needDoc) return "interview_general";
   return `interview_${type}`;
 }
@@ -155,7 +166,14 @@ function renderDocSection() {
     </div>`;
 
   let banner = "";
-  if (!docs.length) {
+  if (meta.needDoc === "optional") {
+    // Optional resume (items 22-23): never a warning, never blocks starting.
+    banner = hasRequired
+      ? `<div style="padding:6px;background:rgba(52,211,153,0.1);border-radius:6px;margin-bottom:8px">
+          <div class="small" style="color:var(--ok)">✓ ${relevant.length} resume document${relevant.length > 1 ? "s" : ""} ready — feedback will be tailored to it.</div></div>`
+      : `<div style="padding:8px;background:var(--bg2);border-radius:6px;margin-bottom:8px">
+          <div class="small dim">Optional: add your resume for more specific feedback — you can start without one.</div></div>`;
+  } else if (!docs.length) {
     banner = `<div style="padding:8px;background:var(--bg2);border-radius:6px;margin-bottom:8px">
       <div class="small" style="color:var(--warn)">No documents yet — upload or paste your ${acceptKind ? KIND_LABEL[acceptKind]?.toLowerCase() || "material" : "material"} below.</div></div>`;
   } else if (!hasRequired && acceptKind) {

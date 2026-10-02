@@ -63,11 +63,85 @@ function tile(k, v, basis) {
   const itype = d.meta?.type || d.kind;
   const role = d.meta?.role || "";
 
+  // Self Introduction: separate short results view — six-dimension rubric plus
+  // the fixed feedback set (What worked / Fix next / Focus & skip / Better
+  // approach / Coach's next step). Metric tiles and generic cards are hidden.
+  const isSelfintro = itype === "selfintro";
+  const rubric = (real[0] && real[0].evaluation && real[0].evaluation.rubric) || null;
+  const RUBRIC_LABELS = { structure: "Structure", clarity: "Clarity", relevance: "Relevance",
+    technical_accuracy: "Technical Accuracy", conciseness: "Conciseness",
+    delivery: "Professional delivery" };
+  const rubricRows = (rub) => Object.keys(RUBRIC_LABELS).map((k) => {
+    const v = rub[k];
+    const num = typeof v === "number" && isFinite(v);
+    const txt = num ? String(Math.round(v * 10) / 10) : "n/a";
+    const w = num ? Math.max(4, Math.round(v * 10)) : 0;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+        <span class="dim" style="min-width:126px;flex:0 0 auto">${RUBRIC_LABELS[k]}</span>
+        <span class="meter" style="flex:1;min-width:40px"><i style="width:${w}%"></i></span>
+        <b style="width:34px;text-align:right;flex:0 0 auto">${txt}</b></div>`;
+  }).join("");
+
   const scoreBig = overall100 != null ? `${overall100}` : "—";
   const answeredLine = [
     total ? `${real.length} of ${total} questions answered` : `${real.length} answers`,
     skipped ? `${skipped} skipped` : null, itype, date,
   ].filter(Boolean).join(" · ");
+
+  if (isSelfintro) {
+    const fs = r.focus_skip || {};
+    const better = (r.better_approach || "").trim();
+    page.innerHTML = `
+    <div class="card">
+      <div class="res-hero">
+        <div class="res-score">${scoreBig}<span class="res-of">/100</span></div>
+        <div class="res-meter">
+          <div class="meter"><i style="width:${overall100 != null ? Math.max(2, Math.min(100, overall100)) : 0}%"></i></div>
+          <div class="small mut">${esc(answeredLine)}${role ? ` · ${esc(role)}` : ""}</div>
+        </div>
+        <div class="row">
+          <a class="btn primary" href="/report?sid=${encodeURIComponent(qsid)}">View question analysis</a>
+          <a class="btn" href="/interview">Practice again</a>
+        </div>
+      </div>
+      ${r.summary ? `<p class="mut mt">${esc(r.summary)}</p>` : ""}
+    </div>
+    ${rubric ? `<div class="card mt"><h3>Six-dimension score</h3><div class="small">${rubricRows(rubric)}</div>
+      <p class="small dim mt">Score = mean of the numeric dimensions (n/a excluded). Judged from the transcript only — video never changes this score.</p></div>` : ""}
+    <div class="grid g2 mt">
+      <div class="card">
+        <h3>What worked</h3>
+        ${strengths.length ? `<ul class="res-list">${strengths.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`
+          : `<p class="mut small">No strengths were recorded.</p>`}
+      </div>
+      <div class="card">
+        <h3>Fix next</h3>
+        ${training.length ? `<ol class="res-list">${training.map((t) => `<li>${esc(t)}</li>`).join("")}</ol>`
+          : `<p class="mut small">No fixes were recorded.</p>`}
+      </div>
+    </div>
+    <div class="grid g2 mt">
+      <div class="card">
+        <h3>Focus / skip</h3>
+        ${fs.say ? `<p class="small"><b style="color:var(--ok)">Say:</b> ${esc(fs.say)}</p>` : ""}
+        ${fs.avoid ? `<p class="small"><b style="color:var(--warn)">Skip:</b> ${esc(fs.avoid)}</p>` : ""}
+        ${!fs.say && !fs.avoid ? `<p class="mut small">No focus notes were recorded for this session.</p>` : ""}
+      </div>
+      <div class="card">
+        <h3>Better approach</h3>
+        ${better ? `<p class="small">${esc(better)}</p>` : `<p class="mut small">No improved example was recorded for this session.</p>`}
+      </div>
+    </div>
+    <div class="card mt">
+      <h3>Coach's next step</h3>
+      <p>${r.next_practice ? esc(r.next_practice) : `<span class="mut">Record a 60-second version and check it against the five beats.</span>`}</p>
+    </div>
+    <div class="row mt">
+      <a class="btn" href="/report?sid=${encodeURIComponent(qsid)}">Full question analysis →</a>
+      <a class="btn ghost" href="/">Back to dashboard</a>
+    </div>`;
+    return;
+  }
 
   page.innerHTML = `
   <div class="card">
@@ -84,7 +158,6 @@ function tile(k, v, basis) {
     </div>
     ${r.summary ? `<p class="mut mt">${esc(r.summary)}</p>` : ""}
   </div>
-
   <div class="grid g4 mt">
     ${tile("Answer quality", avg != null ? `${avg.toFixed(1)}<span class="res-of">/10</span>` : "—",
        `mean of ${scores.length} scored answers`)}
@@ -114,10 +187,10 @@ function tile(k, v, basis) {
 
   <div class="grid g2 mt">
     <div class="card">
-      <h3>Training plan</h3>
+      <h3>${isSelfintro ? "Improvements" : "Training plan"}</h3>
       ${training.length ? `<ol class="res-list">${training.map((t) => `<li>${esc(t)}</li>`).join("")}</ol>`
         : `<p class="mut small">Finish a full interview to get a personalised plan.</p>`}
-      ${r.next_practice ? `<p class="small mt"><span class="dim">Next session:</span> <b>${esc(r.next_practice)}</b></p>` : ""}
+      ${r.next_practice ? `<p class="small mt"><span class="dim">${isSelfintro ? "Coaching tip" : "Next session"}:</span> <b>${esc(r.next_practice)}</b></p>` : ""}
     </div>
     <div class="card">
       <h3>Communication</h3>
