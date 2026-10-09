@@ -2,6 +2,7 @@
 const sid = new URLSearchParams(location.search).get("sid");
 if (!sid) location.href = "/interview";
 document.body.classList.add("il-root");
+document.body.classList.add("immersive");
 const media = createMedia();
 const visual = createVisualSampler();
 let answered = 0, t0 = Date.now(), tick = null, submitting = false;
@@ -12,49 +13,49 @@ let _autoRead = prefs.get("autoRead", true);
 
 /* Immersive full-viewport room — no app shell (Zoom/Meet-style). */
 document.body.innerHTML = `
-<div class="il">
-  <header class="il-top">
-    <span class="il-brand">BERREADY</span>
-    <span class="il-mode">Live interview</span>
-    <span class="il-spacer"></span>
-    <span class="il-pill" id="ivAI">AI…</span>
-    <span class="il-pill" id="cnt">Question 1 of 5</span>
-    <span class="timer il-timer" id="tm">00:00</span>
-    <button class="icon-btn" id="bTheme" title="Switch theme">☾</button>
-    <button class="danger" id="bEnd">End interview</button>
+<div class="immersive">
+  <header class="immersive-topbar">
+    <span class="immersive-brand">BERREADY</span>
+    <span class="immersive-mode">Live interview</span>
+    <span class="immersive-spacer"></span>
+    <span class="immersive-pill" id="ivAI">AI…</span>
+    <span class="immersive-pill" id="cnt">Question 1 of 5</span>
+    <span class="immersive-timer" id="tm">00:00</span>
+    <button class="icon-btn immersive-theme" id="bTheme" title="Switch theme">☾</button>
+    <button class="danger immersive-exit" id="bEnd">End interview</button>
   </header>
-  <div class="il-body">
-    <section class="il-stage">
-      <div class="il-q-label">Interviewer</div>
-      <div class="il-q" id="q">Loading your interview…</div>
-      <div class="il-bridge small mut" id="bridge"></div>
-      <div class="row il-read">
-        <button class="ghost" id="bSpeak" title="Read this question aloud">🔊 Read aloud</button>
+  <div class="immersive-body">
+    <section class="immersive-stage">
+      <div class="immersive-q-label">Interviewer</div>
+      <div class="immersive-q" id="q">Loading your interview…</div>
+      <div class="immersive-bridge small mut" id="bridge"></div>
+      <div class="row immersive-read">
+        <button class="ghost immersive-stt" id="bSpeak" title="Read this question aloud">🔊 Read aloud</button>
         <label class="small dim" style="display:flex;align-items:center;gap:4px;cursor:pointer">
           <input type="checkbox" id="cbAutoRead" ${_autoRead ? "checked" : ""} style="margin:0"/> Auto-read
         </label>
       </div>
-      <div class="il-meta" id="ivMeta">Preparing…</div>
+      <div class="immersive-meta" id="ivMeta">Preparing…</div>
     </section>
-    <aside class="il-side">
-      <video class="il-video" id="v" autoplay muted playsinline></video>
-      <div class="statusbar">
+    <aside class="immersive-side">
+      <video class="immersive-video" id="v" autoplay muted playsinline></video>
+      <div class="immersive-status">
         <span><span class="dot" id="dCam"></span>Camera</span>
         <span><span class="dot" id="dMic"></span>Mic</span>
         <span><span class="dot rec" id="dRec" style="display:none"></span><span id="recT">● idle</span></span>
       </div>
       <div class="row"><button id="bCam">Camera</button><button id="bMic">Mic</button></div>
-      <div class="il-hint">Speak or type your answer below — nothing is shown mid-interview;
+      <div class="immersive-hint">Speak or type your answer below — nothing is shown mid-interview;
         all coaching lands in the final report.</div>
     </aside>
   </div>
-  <footer class="il-bottom">
-    <div class="il-ansrow">
-      <div class="il-ans">
+  <footer class="immersive-foot">
+    <div class="immersive-ansrow">
+      <div class="immersive-ans">
         <div class="small dim" id="ansLabel">Your answer — speak or type</div>
-        <div class="il-tx" id="tx" contenteditable="true">…</div>
+        <div class="immersive-tx" id="tx" contenteditable="true">…</div>
       </div>
-      <div class="il-ctrls">
+      <div class="immersive-ctrls">
         <button class="primary" id="bRecord">🎙️ Start Recording</button>
         <button class="primary" id="bStopRecord" style="display:none">■ Stop & Transcribe</button>
         <button class="primary" id="bTalk">🎤 Browser STT</button>
@@ -63,7 +64,7 @@ document.body.innerHTML = `
         <button class="ghost" id="bChangeTopic" title="Switch to a different topic">🔄 New Topic</button>
       </div>
     </div>
-    <div class="il-status">
+    <div class="immersive-status">
       <span id="sttStatus" class="small mut"></span>
       <span id="statusMsg" class="small"></span>
     </div>
@@ -186,12 +187,17 @@ document.getElementById("bStopRecord").onclick = async () => {
   }
 };
 
-document.getElementById("bTalk").onclick = (e) => media.listen(
-  (t) => { document.getElementById("tx").textContent = t; document.getElementById("sttStatus").innerHTML = `<span class="small mut">🎤 Browser STT active</span>`; },
-  (on) => { document.getElementById("dRec").style.display = on ? "" : "none";
-    document.getElementById("recT").textContent = on ? "● listening" : "● idle";
-    document.body.classList.toggle("speaking", on); e.target.textContent = on ? "■ Stop" : "🎤 Browser STT"; },
-  () => { document.getElementById("sttStatus").innerHTML = `<span style="color:var(--warn)">Microphone unavailable — type your answer.</span>`; });
+document.getElementById("bTalk").onclick = (e) => {
+  const t = document.getElementById("q").textContent;
+  if (!t || /loading|could not/i.test(t)) return;
+  e.target.textContent = speakNow(t) ? "■ Stop" : "🔊 Read aloud";
+  media.listen(
+    (t) => { document.getElementById("tx").textContent = t; document.getElementById("sttStatus").innerHTML = `<span class="small mut">🎤 Browser STT active</span>`; },
+    (on) => { document.getElementById("dRec").style.display = on ? "" : "none";
+      document.getElementById("recT").textContent = on ? "● listening" : "● idle";
+      document.body.classList.toggle("speaking", on); e.target.textContent = on ? "■ Stop" : "🎤 Browser STT"; },
+    () => { document.getElementById("sttStatus").innerHTML = `<span style="color:var(--warn)">Microphone unavailable — type your answer.</span>`; });
+};
 
 function setSubmitting(on, label) {
   submitting = on;

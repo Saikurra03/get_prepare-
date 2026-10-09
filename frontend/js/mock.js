@@ -15,7 +15,7 @@ const MODE_MAP = {
   conversation:  { label: "General Conversation", focus: "Free-form talk — stay natural, clear and engaging." },
 };
 
-const modeKey = MODE_MAP[qp.get("mode")] ? qp.get("mode") : null;
+const modeKey = qp.get("mode") ? qp.get("mode") : null;
 let sid = qp.get("sid");
 let answered = 0, NQ = 5, submitting = false, recording = false;
 let t0 = Date.now(), tick = null;
@@ -25,43 +25,45 @@ const media = createMedia();
 const visual = createVisualSampler();
 
 /* ---------- Fullscreen layout (no app shell — immersive) ---------- */
+const IMMERSIVE_TAG = "immersive";
+document.body.classList.add(IMMERSIVE_TAG);
 document.body.innerHTML = `
-<div class="mock">
-  <div class="mock-top">
-    <span class="mock-brand">BERREADY</span>
-    <span class="mock-mode" id="mMode">${modeKey ? esc(MODE_MAP[modeKey].label) : "Mock interview"}</span>
-    <span class="mock-spacer"></span>
-    <span class="mock-pill" id="mAI">AI…</span>
-    <span class="mock-pill" id="mSig" title="Camera signals gathered for this question">👁 0</span>
-    <span class="mock-dots" id="mDots"></span>
-    <span class="mock-timer" id="mTm">00:00</span>
-    <button class="icon-btn" id="bTheme" title="Switch theme">☾</button>
-    <button class="danger" id="bExit">Exit</button>
+<div class="immersive">
+  <div class="immersive-topbar">
+    <span class="immersive-brand">BERREADY</span>
+    <span class="immersive-mode" id="mMode">${modeKey ? esc(MODE_MAP[modeKey].label) : "Mock interview"}</span>
+    <span class="immersive-spacer"></span>
+    <span class="immersive-pill" id="mAI">AI…</span>
+    <span class="immersive-pill" id="mSig" title="Camera signals gathered for this question">👁 0</span>
+    <span class="immersive-dots" id="mDots"></span>
+    <span class="immersive-timer" id="mTm">00:00</span>
+    <button class="icon-btn immersive-theme" id="bTheme" title="Switch theme">☾</button>
+    <button class="danger immersive-exit" id="bExit">Exit</button>
   </div>
-  <div class="mock-body">
-    <div class="mock-stage">
-      <div class="mock-q-label" id="mQLabel">Interviewer</div>
-      <div class="mock-q" id="q">Preparing your room…</div>
-      <div class="mock-bridge" id="bridge"></div>
-      <div class="mock-meta"><span id="mRole"></span></div>
+  <div class="immersive-body">
+    <div class="immersive-stage">
+      <div class="immersive-q-label" id="mQLabel">Interviewer</div>
+      <div class="immersive-q" id="q">Preparing your room…</div>
+      <div class="immersive-bridge" id="bridge"></div>
+      <div class="immersive-meta"><span id="mRole"></span></div>
     </div>
-    <div class="mock-side">
-      <video class="mock-video" id="v" autoplay muted playsinline></video>
-      <div class="mock-status">
+    <div class="immersive-side">
+      <video class="immersive-video" id="v" autoplay muted playsinline></video>
+      <div class="immersive-status">
         <span><span class="dot" id="dCam"></span> Camera</span>
         <span><span class="dot" id="dMic"></span> Mic</span>
         <span><span class="dot rec" id="dRec" style="display:none"></span><span id="recT">idle</span></span>
-        <span class="mock-spacer"></span>
-        <button class="ghost" id="bCam">Camera</button>
-        <button class="ghost" id="bMic">Mic</button>
+        <span class="immersive-spacer"></span>
+        <button class="ghost immersive-cam" id="bCam">Camera</button>
+        <button class="ghost immersive-cam" id="bMic">Mic</button>
       </div>
-      <div class="mock-side-card">Answer out loud or type below — <b>Ctrl+Enter</b> submits.
+      <div class="immersive-side-card">Answer out loud or type below — <b>Ctrl+Enter</b> submits.
         Nothing is shown mid-interview; all coaching lands in the final report.</div>
     </div>
   </div>
-  <div class="mock-bottom">
-    <div class="mock-tx" id="tx" contenteditable="true" data-ph="Your answer — speak or type…"></div>
-    <div class="mock-ctrls">
+  <div class="immersive-bottom">
+    <div class="immersive-tx" id="tx" contenteditable="true" data-ph="Your answer — speak or type…"></div>
+    <div class="immersive-ctrls">
       <button class="primary" id="bRecord">🎙️ Record</button>
       <button class="primary" id="bStopRecord" style="display:none">■ Stop</button>
       <button id="bTalk">🎤 Browser STT</button>
@@ -73,10 +75,10 @@ document.body.innerHTML = `
         <input type="checkbox" id="cbRead" ${_autoRead ? "checked" : ""} style="margin:0"/> Auto-read</label>
     </div>
   </div>
-  <div class="mock-foot">
-    <div class="mock-msg" id="msg"></div>
-    <span class="mock-spacer"></span>
-    <button class="danger" id="bEnd">End &amp; see report</button>
+  <div class="immersive-foot">
+    <div class="immersive-msg" id="msg"></div>
+    <span class="immersive-spacer"></span>
+    <button class="danger" id="bEnd">End & see report</button>
   </div>
 </div>`;
 
@@ -92,7 +94,7 @@ function renderCount() { $("mMode").textContent = `${modeKey ? MODE_MAP[modeKey]
 function renderDots() {
   if (NQ > 24) { $("mDots").innerHTML = ""; return; }
   let h = "";
-  for (let i = 0; i < NQ; i++) h += `<span class="mock-dot${i < answered ? " done" : i === answered ? " now" : ""}"></span>`;
+  for (let i = 0; i < NQ; i++) h += `<span class="immersive-dot${i < answered ? " done" : i === answered ? " now" : ""}"></span>`;
   $("mDots").innerHTML = h;
 }
 function setSubmitting(on, label) {
@@ -177,13 +179,12 @@ $("bStopRecord").onclick = async () => {
   recording = false;
   $("bStopRecord").style.display = "none";
   $("bRecord").style.display = "";
-  $("bTalk").disabled = false; $("bSend").disabled = false;
+  $("bTalk").disabled = false; $("bSend").disabled = true;
   $("recT").textContent = "transcribing";
   showMsg("⏳ Transcribing with server Whisper…", "dim");
   const blob = await media.stopRecording();
   let transcript = "";
   if (_lastBlobUrl) { try { URL.revokeObjectURL(_lastBlobUrl); } catch {} _lastBlobUrl = null; }
-  if (blob && blob.size > 0) _lastBlobUrl = URL.createObjectURL(blob);
   if (blob) {
     const result = await media.uploadRecording(blob, "en");
     transcript = result.text || "";
@@ -201,14 +202,12 @@ $("bStopRecord").onclick = async () => {
   $("recT").textContent = "idle";
   if (!transcript) showMsg("No speech detected — type your answer or record again.", "warn");
 };
-$("bTalk").onclick = (e) => media.listen(
-  (t) => { $("tx").textContent = t; showMsg("🎤 Browser STT active", "dim"); },
-  (on) => {
-    $("dRec").style.display = on ? "" : "none";
-    $("recT").textContent = on ? "listening" : "idle";
-    e.target.textContent = on ? "■ Stop" : "🎤 Browser STT";
-  },
-  () => showMsg("Microphone unavailable — type your answer.", "warn"));
+
+$("bTalk").onclick = (e) => {
+  const t = $("q").textContent;
+  if (!t || /preparing|loading/i.test(t)) return;
+  e.target.textContent = speakNow(t) ? "■" : "🔊";
+};
 
 /* ---------- Question flow: submit / skip / new topic / end ---------- */
 function afterAdvance(r, statusMsg) {

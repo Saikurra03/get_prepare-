@@ -14,66 +14,25 @@ const ITYPES = [
 
 const page = buildShell("Interview coach", "BERREADY / Interview");
 page.innerHTML = `
-  <p class="sub">A realistic AI interviewer — adaptive follow-ups, minimal interruption, full report at the end.</p>
-  <div class="card mb">
-    <div class="row">
-      <div><h3>Prepare with your documents</h3>
-        <p class="sub" style="margin:0">Upload resume, JD or topic material so questions target you — <span id="docCount">…</span></p></div>
-      <span style="flex:1"></span>
-      <a class="btn primary" href="/prepare">Open preparation</a>
-    </div>
+  <div class="hero{
+    background:var(--glass-card);
+    backdrop-filter:blur(var(--glass-blur));
+    border-radius:var(--radius-lg);
+    padding:var(--space-lg)var(--space-xl);
+    margin-bottom:var(--space-lg);
+  }">
+    <p class="sub" style="margin:0">A realistic AI interviewer — adaptive follow-ups, minimal interruption, full report at the end.</p>
   </div>
-  <div class="grid g2 mb">
-    <div class="card mode">
+  <div class="grid g2 mb" style="gap:var(--space-md)">
+    <div class="card mode" style="flex:1;min-height:0">
       <div class="m-ic">⛶</div>
-      <div><h3>Full-screen mock room</h3><p>Immersive, distraction-free interview — camera, timer, progress dots, report at the end.</p></div>
+      <div><h3>Full-screen mock room</h3><p style="flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-line-height:1.4;">Immersive, distraction-free interview — camera, timer, progress dots, report at the end.</p></div>
       <a class="btn primary go" href="/mock">Enter room</a>
     </div>
-    <div class="card mode">
+    <div class="card mode" style="flex:1;min-height:0">
       <div class="m-ic">☰</div>
-      <div><h3>Your question list</h3><p>Upload or paste your own questions — count, difficulty and order are yours. The AI never invents them.</p></div>
+      <div><h3>Your question list</h3><p style="flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-line-height:1.4;">Upload or paste your own questions — count, difficulty and order are yours. The AI never invents them.</p></div>
       <a class="btn primary go" href="/qbank">Build list</a>
     </div>
   </div>
-  <div class="grid g2" id="types"></div>`;
-
-let DOC_MAP = {};
-(async () => {
-  try {
-    const d = await api.docs("interview");
-    const docs = d.documents || [];
-    document.getElementById("docCount").textContent = `${docs.length} document(s) ready`;
-    docs.forEach((doc) => { DOC_MAP[doc.kind] = (DOC_MAP[doc.kind] || 0) + 1; });
-  } catch {}
-  renderTypes();
-})();
-
-function renderTypes() {
-  document.getElementById("types").innerHTML = ITYPES.map(([k, t, d, f]) => {
-    const need = k === "selfintro" ? "optional" : k === "resume" ? "resume" : k === "jd" ? "jd" : k === "topic" ? "any" : null;
-    let badge = "";
-    if (need === "optional") {
-      badge = DOC_MAP.resume
-        ? `<span class="pill ok">Resume ready</span>`
-        : `<span class="pill">Resume optional</span>`;
-    } else if (need === "resume") {
-      badge = DOC_MAP.resume
-        ? `<span class="pill ok">Resume ready</span>`
-        : `<span class="pill warn">Resume needed</span>`;
-    } else if (need === "jd") {
-      badge = DOC_MAP.jd
-        ? `<span class="pill ok">JD ready</span>`
-        : `<span class="pill warn">JD needed</span>`;
-    } else if (need === "any") {
-      const total = Object.values(DOC_MAP).reduce((a, b) => a + b, 0);
-      badge = total
-        ? `<span class="pill ok">${total} doc${total > 1 ? "s" : ""} ready</span>`
-        : `<span class="pill warn">Material needed</span>`;
-    }
-    return `<div class="card mode">
-      <div class="m-ic">◈</div>
-      <div><h3>${t}</h3><p>${d} Focus: ${f}</p>${badge}</div>
-      <a class="btn primary go" href="/prepare?type=${k}">Start</a>
-    </div>`;
-  }).join("");
-}
+  <div class="grid g2"id="types"></div>`;

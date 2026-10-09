@@ -1,0 +1,1927 @@
+[
+  {
+    "id": "8228f9c427",
+    "kind": "interview",
+    "created": 1790611880.0358653,
+    "meta": {
+      "question_index": 1
+    },
+    "turns": [
+      {
+        "question": "What are the different components of an SAP system?",
+        "answer": "The components includes in SAP system is application layer, presentation layer and database layer where the application layer provides the interaction between user and UI and the presentation layer where the user interacts. The application layer provides the application where the user will interact with the SAP GUI, where the presentation layer provides the SAP GUI to the user, where the database layer stores the information or helps the user to retrieve and store the data on the databases. These are the three major components.",
+        "bridge": "Good. Let's move on.",
+        "tid": "f8fd393b00",
+        "visual_events": [],
+        "analysis_pending": false,
+        "evaluation": {
+          "score": 5,
+          "strength": "Mentioned all three SAP layers and used simple language.",
+          "main_issue": "Repetitive wording and unclear explanation of each layer\u2019s function.",
+          "retry_suggested": true,
+          "retry_instruction": "Explain each layer in one clear sentence, avoid repeating words, and give a concrete example of how a user interacts with each component.",
+          "good": [
+            "Mentioned all three layers",
+            "Used simple language"
+          ],
+          "biggest_issue": "The answer repeats words like \"application\" and \"layer\" many times, making it confusing and lacking depth.",
+          "relevance": {
+            "verdict": "directly",
+            "note": "\"The components includes in SAP system is application layer, presentation layer and database layer where the application layer provides the interaction between user and UI and the presentation layer where the user interacts.\" \u2013 The answer lists the layers but does not clearly explain their roles."
+          },
+          "sentences": [
+            {
+              "problem": "The components includes in SAP system is application layer, presentation layer and database layer where the application layer provides the interaction between user and UI and the presentation layer where the user interacts.",
+              "fix": "State: \"SAP consists of three layers: the presentation layer (user interface), the application layer (business logic), and the database layer (data storage).\""
+            },
+            {
+              "problem": "The application layer provides the application where the user will interact with the SAP GUI, where the presentation layer provides the SAP GUI to the user, where the database layer stores the information or helps the user to retrieve and store the data on the databases.",
+              "fix": "Clarify: \"In the application layer, the system processes requests; the presentation layer displays the SAP GUI; the database layer stores and retrieves data.\""
+            }
+          ],
+          "better_examples": [
+            {
+              "text": "SAP is structured into three layers: the presentation layer delivers the GUI, the application layer handles business logic, and the database layer manages data storage.",
+              "why": "Clear, concise, and each layer\u2019s role is distinct."
+            },
+            {
+              "text": "When a user logs in through the SAP GUI (presentation layer), the application layer authenticates the request and pulls data from the database layer.",
+              "why": "Provides a concrete user interaction scenario."
+            }
+          ],
+          "interviewer_want": "A concise explanation of each SAP component and how they interact with users and data.",
+          "dimensions": {
+            "clarity": "Moderately unclear due to repetition",
+            "conciseness": "Sentences are too long and redundant",
+            "specificity": "Low \u2013 roles of layers are not well defined"
+          },
+          "vocabulary": "Repetitive and vague; could use more precise terms like \"interface\" and \"data store\".",
+          "fillers": "fillers=0, hedges=0",
+          "pacing": "moderate",
+          "completeness": "Answer finishes the point but trails off with repetition",
+          "technical": "Correct",
+          "articulation": "unavailable",
+          "pronunciation": "unavailable",
+          "signals": {
+            "word_count": 85,
+            "sentence_count": 3,
+            "long_sentences": 2,
+            "filler_counts": {},
+            "filler_total": 0,
+            "qualifier_total": 0,
+            "repeated_words": {
+              "application": 4,
+              "layer": 8,
+              "where": 5,
+              "user": 5
+            },
+            "slow_start": false,
+            "empty": false
+          },
+          "provider": "groq"
+        },
+        "coaching": {
+          "appreciation": "You correctly identified all three SAP layers\u2014presentation, application, and database\u2014and used simple language to describe them.",
+          "priority": "Priority: Clarify each layer\u2019s role and eliminate repetitive phrasing.",
+          "specific_feedback": "Your answer repeats terms like \u201cinteraction\u201d and mixes up which layer does what, making the explanation hard to follow.",
+          "improvement": "Try: \"The presentation layer delivers the SAP GUI to the user; the application layer handles business logic and processes requests; the database layer stores and retrieves the data needed for those requests.\"",
+          "next_step": "Keep building on this foundation, and focus on concise, distinct explanations for each component in the next question.",
+          "provider": "groq"
+        },
+        "model_answer": "Sure, let me break it down the way I usually explain it. An SAP system is built on a three\u2011tier architecture: the presentation layer, the application layer, and the database layer. The presentation layer is what the end\u2011user actually sees \u2013 the SAP GUI, Fiori launchpad, or any web\u2011based UI \u2013 and it handles the screen rendering and basic input validation. The application layer is the heart of the system; it runs the ABAP/Java runtime, processes business logic, and orchestrates everything from a sales order to a payroll run. Finally, the database layer stores all the master and transactional data \u2013 in modern landscapes that\u2019s typically SAP HANA, which gives us real\u2011time analytics and sub\u2011second query response. For example, in my last project we migrated a legacy ECC system to S/4HANA and saw order\u2011to\u2011cash cycle times drop from 48\u202fhours to under 4\u202fhours, largely thanks to the in\u2011memory database handling the heavy lifting.",
+        "visual_coaching": ""
+      }
+    ],
+    "status": "finished",
+    "report": {
+      "overall": 5.0,
+      "answers_evaluated": 1,
+      "best_answer": {
+        "question": "What are the different components of an SAP system?",
+        "score": 5
+      },
+      "weakest_answer": {
+        "question": "What are the different components of an SAP system?",
+        "issue": "Repetitive wording and unclear explanation of each layer\u2019s function."
+      },
+      "summary": "The candidate answered the SAP components question directly but delivered a muddled, repetitive explanation of each layer.",
+      "strengths": [
+        "Addressed all three layers (presentation, application, database) as requested.",
+        "Kept the response focused on the asked topic without filler content."
+      ],
+      "biggest_weakness": "Confusing and redundant description of layer functions, leading to unclear technical accuracy.",
+      "communication": "Uses long sentences and repeats phrases, making the explanation hard to follow.",
+      "technical": "Mislabels the presentation and application layers and lacks precise detail about their responsibilities.",
+      "role_alignment": "Shows basic awareness of SAP architecture but needs sharper technical articulation for an intermediate role.",
+      "training": [
+        "Practice concise, accurate technical explanations.",
+        "Incorporate the STAR framework for future behavioral questions."
+      ],
+      "top_priority": "Improve clarity and correctness when describing SAP system layers.",
+      "next_practice": "In a mock interview, explain SAP's three\u2011tier architecture in under 60 seconds, using distinct, non\u2011overlapping sentences for each layer.",
+      "recurring_problems": [
+        "Repetitive wording and unclear explanation of each layer\u2019s function."
+      ],
+      "relevance_summary": "1/1 answers directly addressed the question.",
+      "sentence_patterns": "Across 1 answers: 0 fillers, 2 over-long sentences, 85 words total.",
+      "pronunciation_note": "Not enough data to evaluate pronunciation/articulation: sessions are scored from text transcripts, not analyzed audio.",
+      "provider": "groq",
+      "question_details": [
+        {
+          "question": "What are the different components of an SAP system?",
+          "answer": "The components includes in SAP system is application layer, presentation layer and database layer where the application layer provides the interaction between user and UI and the presentation layer where the user interacts. The application layer provides the application where the user will interact with the SAP GUI, where the presentation layer provides the SAP GUI to the user, where the database layer stores the information or helps the user to retrieve and store the data on the databases. These are the three major components.",
+          "evaluation": {
+            "score": 5,
+            "strength": "Mentioned all three SAP layers and used simple language.",
+            "main_issue": "Repetitive wording and unclear explanation of each layer\u2019s function.",
+            "retry_suggested": true,
+            "retry_instruction": "Explain each layer in one clear sentence, avoid repeating words, and give a concrete example of how a user interacts with each component.",
+            "good": [
+              "Mentioned all three layers",
+              "Used simple language"
+            ],
+            "biggest_issue": "The answer repeats words like \"application\" and \"layer\" many times, making it confusing and lacking depth.",
+            "relevance": {
+              "verdict": "directly",
+              "note": "\"The components includes in SAP system is application layer, presentation layer and database layer where the application layer provides the interaction between user and UI and the presentation layer where the user interacts.\" \u2013 The answer lists the layers but does not clearly explain their roles."
+            },
+            "sentences": [
+              {
+                "problem": "The components includes in SAP system is application layer, presentation layer and database layer where the application layer provides the interaction between user and UI and the presentation layer where the user interacts.",
+                "fix": "State: \"SAP consists of three layers: the presentation layer (user interface), the application layer (business logic), and the database layer (data storage).\""
+              },
+              {
+                "problem": "The application layer provides the application where the user will interact with the SAP GUI, where the presentation layer provides the SAP GUI to the user, where the database layer stores the information or helps the user to retrieve and store the data on the databases.",
+                "fix": "Clarify: \"In the application layer, the system processes requests; the presentation layer displays the SAP GUI; the database layer stores and retrieves data.\""
+              }
+            ],
+            "better_examples": [
+              {
+                "text": "SAP is structured into three layers: the presentation layer delivers the GUI, the application layer handles business logic, and the database layer manages data storage.",
+                "why": "Clear, concise, and each layer\u2019s role is distinct."
+              },
+              {
+                "text": "When a user logs in through the SAP GUI (presentation layer), the application layer authenticates the request and pulls data from the database layer.",
+                "why": "Provides a concrete user interaction scenario."
+              }
+            ],
+            "interviewer_want": "A concise explanation of each SAP component and how they interact with users and data.",
+            "dimensions": {
+              "clarity": "Moderately unclear due to repetition",
+              "conciseness": "Sentences are too long and redundant",
+              "specificity": "Low \u2013 roles of layers are not well defined"
+            },
+            "vocabulary": "Repetitive and vague; could use more precise terms like \"interface\" and \"data store\".",
+            "fillers": "fillers=0, hedges=0",
+            "pacing": "moderate",
+            "completeness": "Answer finishes the point but trails off with repetition",
+            "technical": "Correct",
+            "articulation": "unavailable",
+            "pronunciation": "unavailable",
+            "signals": {
+              "word_count": 85,
+              "sentence_count": 3,
+              "long_sentences": 2,
+              "filler_counts": {},
+              "filler_total": 0,
+              "qualifier_total": 0,
+              "repeated_words": {
+                "application": 4,
+                "layer": 8,
+                "where": 5,
+                "user": 5
+              },
+              "slow_start": false,
+              "empty": false
+            },
+            "provider": "groq"
+          },
+          "coaching": {
+            "appreciation": "You correctly identified all three SAP layers\u2014presentation, application, and database\u2014and used simple language to describe them.",
+            "priority": "Priority: Clarify each layer\u2019s role and eliminate repetitive phrasing.",
+            "specific_feedback": "Your answer repeats terms like \u201cinteraction\u201d and mixes up which layer does what, making the explanation hard to follow.",
+            "improvement": "Try: \"The presentation layer delivers the SAP GUI to the user; the application layer handles business logic and processes requests; the database layer stores and retrieves the data needed for those requests.\"",
+            "next_step": "Keep building on this foundation, and focus on concise, distinct explanations for each component in the next question.",
+            "provider": "groq"
+          },
+          "model_answer": "Sure, let me break it down the way I usually explain it. An SAP system is built on a three\u2011tier architecture: the presentation layer, the application layer, and the database layer. The presentation layer is what the end\u2011user actually sees \u2013 the SAP GUI, Fiori launchpad, or any web\u2011based UI \u2013 and it handles the screen rendering and basic input validation. The application layer is the heart of the system; it runs the ABAP/Java runtime, processes business logic, and orchestrates everything from a sales order to a payroll run. Finally, the database layer stores all the master and transactional data \u2013 in modern landscapes that\u2019s typically SAP HANA, which gives us real\u2011time analytics and sub\u2011second query response. For example, in my last project we migrated a legacy ECC system to S/4HANA and saw order\u2011to\u2011cash cycle times drop from 48\u202fhours to under 4\u202fhours, largely thanks to the in\u2011memory database handling the heavy lifting.",
+          "visual_observations": [],
+          "visual_coaching": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "d3a12c3ecd",
+    "kind": "interview",
+    "created": 1790612107.1458344,
+    "meta": {
+      "type": "mixed",
+      "difficulty": "intermediate",
+      "role": "Candidate",
+      "context": "",
+      "jd": "",
+      "num_questions": 2,
+      "questions": [
+        {
+          "q": "What is your greatest strength?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Describe a project you led.",
+          "topic": "question-list"
+        }
+      ],
+      "question_index": 2,
+      "question_source": "user"
+    },
+    "turns": [
+      {
+        "question": "What is your greatest strength?",
+        "answer": "I stay calm under pressure and communicate early.",
+        "tid": "51f47932e2",
+        "visual_events": [],
+        "analysis_pending": false,
+        "evaluation": {
+          "score": 2,
+          "strength": "concise",
+          "main_issue": "lacks depth and concrete examples",
+          "retry_suggested": true,
+          "retry_instruction": "Use the STAR method: describe a Situation, Task, Action, and Result that showcases your calmness and communication.",
+          "good": [
+            "concise",
+            "direct"
+          ],
+          "biggest_issue": "No specific example to demonstrate the strength",
+          "relevance": {
+            "verdict": "missed",
+            "note": "The answer states a trait but does not explain why it is a strength or provide evidence. \"I stay calm under pressure and communicate early.\""
+          },
+          "sentences": [
+            {
+              "problem": "I stay calm under pressure and communicate early.",
+              "fix": "I stay calm under pressure, which helped me lead a team through a critical project deadline by proactively communicating status updates and risk mitigations."
+            }
+          ],
+          "better_examples": [
+            {
+              "text": "When our client\u2019s server crashed during a live demo, I remained calm, coordinated with IT, and kept the client informed, preventing a 2\u2011hour delay.",
+              "why": "Shows calmness under pressure and communication with clear outcome."
+            },
+            {
+              "text": "During a sprint review, I noticed a backlog issue that could derail delivery. I calmly presented the issue, suggested a re\u2011prioritization, and the team accepted the change, keeping the release on schedule.",
+              "why": "Illustrates communication and calmness with a positive result."
+            }
+          ],
+          "interviewer_want": "They want a specific strength backed by evidence that shows impact.",
+          "dimensions": {
+            "clarity": "clear",
+            "conciseness": "concise",
+            "specificity": "vague"
+          },
+          "vocabulary": "uses generic wording; lacks precise verbs and descriptors",
+          "fillers": "fillers=0, hedges=0",
+          "pacing": "very fast",
+          "completeness": "completed",
+          "technical": "n/a",
+          "articulation": "unavailable",
+          "pronunciation": "unavailable",
+          "signals": {
+            "word_count": 8,
+            "sentence_count": 1,
+            "long_sentences": 0,
+            "filler_counts": {},
+            "filler_total": 0,
+            "qualifier_total": 0,
+            "repeated_words": {},
+            "slow_start": false,
+            "empty": false
+          },
+          "provider": "groq"
+        },
+        "coaching": {
+          "appreciation": "You gave it a go \u2014 with some adjustments, this can become much stronger.",
+          "priority": "Priority: lacks depth and concrete examples.",
+          "specific_feedback": "Score: 2/10. What worked: concise, direct.",
+          "improvement": "Try: When our client\u2019s server crashed during a live demo, I remained calm, coordinated with IT, and kept the client informed, preventing a 2\u2011hour delay.",
+          "next_step": "Ready for the next question \u2014 keep building on this.",
+          "provider": "offline"
+        },
+        "model_answer": "Sure, I\u2019d say my greatest strength is staying calm under pressure while making sure everyone\u2019s in the loop early on. For example, last year our e\u2011commerce platform went down during a Black\u2011Friday flash sale \u2013 traffic spiked to 3\u202f\u00d7\u202fnormal and the checkout was freezing. I immediately called a quick huddle, laid out the timeline, assigned roles, and kept senior leadership updated every 15\u202fminutes. The team isolated the bottleneck and got the site back up in under two hours, limiting revenue loss to under $200\u202fK instead of the projected $1\u202fM. The key thing here is that staying level\u2011headed helped me think clearly, and communicating early kept the team aligned and the stakeholders reassured. That combination has helped me deliver consistently, even in high\u2011stakes situations.",
+        "visual_coaching": ""
+      },
+      {
+        "question": "Describe a project you led.",
+        "answer": "I led a two-person team to ship a payment retry system.",
+        "bridge": "Good. Let's move on.",
+        "tid": "5da53e64b4",
+        "visual_events": [],
+        "analysis_pending": false,
+        "evaluation": {
+          "score": 4,
+          "strength": "Concise mention of leadership and project scope.",
+          "main_issue": "Lacks depth, no STAR structure, no metrics or context.",
+          "retry_suggested": true,
+          "retry_instruction": "Expand by adding context, challenge, actions, results, and a measurable outcome. Use STAR format and include numbers to show impact.",
+          "good": [
+            "Clear mention of team size and project type"
+          ],
+          "biggest_issue": "Too brief to convey real impact or learning.",
+          "relevance": {
+            "verdict": "directly",
+            "note": "The answer directly states the candidate led a project, but it misses detail and depth expected for an intermediate level."
+          },
+          "sentences": [
+            {
+              "problem": "I led a two-person team to ship a payment retry system.",
+              "fix": "I led a two-person team to design, develop, and launch a payment retry system that cut failed transaction rates by 30% within six months."
+            }
+          ],
+          "better_examples": [
+            {
+              "text": "I led a two-person team to build a payment retry system that reduced failed transaction rates by 30% in the first six months after launch.",
+              "why": "Adds context, action, and measurable impact."
+            },
+            {
+              "text": "I managed a two-person team to develop a payment retry system, improving customer satisfaction scores by 15% and decreasing support tickets by 25%.",
+              "why": "Provides specific metrics and demonstrates business value."
+            }
+          ],
+          "interviewer_want": "Concrete details, measurable results, and evidence of leadership and problem\u2011solving.",
+          "dimensions": {
+            "clarity": "Clear but overly brief",
+            "conciseness": "Very concise, but at cost of depth",
+            "specificity": "Low, no metrics or detailed actions"
+          },
+          "vocabulary": "Generic terms; lacks precision and impact words",
+          "fillers": "fillers=0, hedges=0",
+          "pacing": "very quick (12 words)",
+          "completeness": "Incomplete \u2013 answer trails off without elaboration",
+          "technical": "n/a",
+          "articulation": "unavailable",
+          "pronunciation": "unavailable",
+          "signals": {
+            "word_count": 12,
+            "sentence_count": 1,
+            "long_sentences": 0,
+            "filler_counts": {},
+            "filler_total": 0,
+            "qualifier_total": 0,
+            "repeated_words": {},
+            "slow_start": false,
+            "empty": false
+          },
+          "provider": "groq"
+        },
+        "coaching": {
+          "appreciation": "You clearly stated that you led a two\u2011person team to ship a payment retry system.",
+          "priority": "Priority: Add depth by using the STAR framework and include measurable results.",
+          "specific_feedback": "Your answer is concise but misses context, the challenge you faced, the actions you took, and any impact metrics, which are essential for an intermediate\u2011level response.",
+          "improvement": "Try: \"I led a two\u2011person team to design and launch a payment retry system that reduced failed transaction rates by 30% within six months, improving customer satisfaction and cutting support tickets by 25%.\"",
+          "next_step": "Keep building on this foundation, and you\u2019ll showcase strong leadership in the next question.",
+          "provider": "groq"
+        },
+        "model_answer": "Sure, let me walk you through that. I was the technical lead on a two\u2011person squad tasked with building a payment\u2011retry system for our e\u2011commerce platform. What I did was first map out the failure scenarios we were seeing \u2013 mainly network timeouts and insufficient funds \u2013 and then designed a lightweight, idempotent service that could queue failed transactions and automatically retry them up to three times with exponential back\u2011off. I split the work: my teammate focused on the API layer while I handled the retry logic and the integration tests. The key thing here is that we shipped the whole thing in six weeks, and after rollout we saw a 22% reduction in abandoned carts due to payment failures. It was a tight timeline, but the close collaboration and clear ownership helped us deliver on schedule and impact the bottom line.",
+        "visual_coaching": ""
+      }
+    ],
+    "status": "finished",
+    "report": {
+      "overall": 3.0,
+      "answers_evaluated": 2,
+      "best_answer": {
+        "question": "Describe a project you led.",
+        "score": 4
+      },
+      "weakest_answer": {
+        "question": "What is your greatest strength?",
+        "issue": "lacks depth and concrete examples"
+      },
+      "summary": "Answers are concise and on\u2011topic but lack depth, metrics, and a clear STAR narrative.",
+      "strengths": [
+        "Stays calm under pressure",
+        "Provides filler\u2011free, concise responses"
+      ],
+      "biggest_weakness": "Missing concrete details, metrics, and structured storytelling (STAR).",
+      "communication": "Clear and brief, but needs richer context to be compelling.",
+      "technical": "Identifies leading a payment\u2011retry system yet offers no technical specifics or impact numbers.",
+      "role_alignment": "Shows potential for collaboration but falls short on demonstrating measurable results.",
+      "training": [
+        "STAR storytelling with metrics",
+        "Deep\u2011dive technical debriefs for project examples"
+      ],
+      "top_priority": "Add measurable results and a full STAR structure to behavioral answers.",
+      "next_practice": "In the next mock interview, answer \u2018Describe a project you led\u2019 using STAR and include a metric, e.g., \u201cWe reduced payment failures by 15% within 2 months.\u201d",
+      "recurring_problems": [
+        "lacks depth and concrete examples",
+        "Lacks depth, no STAR structure, no metrics or context."
+      ],
+      "relevance_summary": "1/2 answers directly addressed the question.",
+      "sentence_patterns": "Across 2 answers: 0 fillers, 0 over-long sentences, 20 words total.",
+      "pronunciation_note": "Not enough data to evaluate pronunciation/articulation: sessions are scored from text transcripts, not analyzed audio.",
+      "provider": "groq",
+      "question_details": [
+        {
+          "question": "What is your greatest strength?",
+          "answer": "I stay calm under pressure and communicate early.",
+          "evaluation": {
+            "score": 2,
+            "strength": "concise",
+            "main_issue": "lacks depth and concrete examples",
+            "retry_suggested": true,
+            "retry_instruction": "Use the STAR method: describe a Situation, Task, Action, and Result that showcases your calmness and communication.",
+            "good": [
+              "concise",
+              "direct"
+            ],
+            "biggest_issue": "No specific example to demonstrate the strength",
+            "relevance": {
+              "verdict": "missed",
+              "note": "The answer states a trait but does not explain why it is a strength or provide evidence. \"I stay calm under pressure and communicate early.\""
+            },
+            "sentences": [
+              {
+                "problem": "I stay calm under pressure and communicate early.",
+                "fix": "I stay calm under pressure, which helped me lead a team through a critical project deadline by proactively communicating status updates and risk mitigations."
+              }
+            ],
+            "better_examples": [
+              {
+                "text": "When our client\u2019s server crashed during a live demo, I remained calm, coordinated with IT, and kept the client informed, preventing a 2\u2011hour delay.",
+                "why": "Shows calmness under pressure and communication with clear outcome."
+              },
+              {
+                "text": "During a sprint review, I noticed a backlog issue that could derail delivery. I calmly presented the issue, suggested a re\u2011prioritization, and the team accepted the change, keeping the release on schedule.",
+                "why": "Illustrates communication and calmness with a positive result."
+              }
+            ],
+            "interviewer_want": "They want a specific strength backed by evidence that shows impact.",
+            "dimensions": {
+              "clarity": "clear",
+              "conciseness": "concise",
+              "specificity": "vague"
+            },
+            "vocabulary": "uses generic wording; lacks precise verbs and descriptors",
+            "fillers": "fillers=0, hedges=0",
+            "pacing": "very fast",
+            "completeness": "completed",
+            "technical": "n/a",
+            "articulation": "unavailable",
+            "pronunciation": "unavailable",
+            "signals": {
+              "word_count": 8,
+              "sentence_count": 1,
+              "long_sentences": 0,
+              "filler_counts": {},
+              "filler_total": 0,
+              "qualifier_total": 0,
+              "repeated_words": {},
+              "slow_start": false,
+              "empty": false
+            },
+            "provider": "groq"
+          },
+          "coaching": {
+            "appreciation": "You gave it a go \u2014 with some adjustments, this can become much stronger.",
+            "priority": "Priority: lacks depth and concrete examples.",
+            "specific_feedback": "Score: 2/10. What worked: concise, direct.",
+            "improvement": "Try: When our client\u2019s server crashed during a live demo, I remained calm, coordinated with IT, and kept the client informed, preventing a 2\u2011hour delay.",
+            "next_step": "Ready for the next question \u2014 keep building on this.",
+            "provider": "offline"
+          },
+          "model_answer": "Sure, I\u2019d say my greatest strength is staying calm under pressure while making sure everyone\u2019s in the loop early on. For example, last year our e\u2011commerce platform went down during a Black\u2011Friday flash sale \u2013 traffic spiked to 3\u202f\u00d7\u202fnormal and the checkout was freezing. I immediately called a quick huddle, laid out the timeline, assigned roles, and kept senior leadership updated every 15\u202fminutes. The team isolated the bottleneck and got the site back up in under two hours, limiting revenue loss to under $200\u202fK instead of the projected $1\u202fM. The key thing here is that staying level\u2011headed helped me think clearly, and communicating early kept the team aligned and the stakeholders reassured. That combination has helped me deliver consistently, even in high\u2011stakes situations.",
+          "visual_observations": [],
+          "visual_coaching": ""
+        },
+        {
+          "question": "Describe a project you led.",
+          "answer": "I led a two-person team to ship a payment retry system.",
+          "evaluation": {
+            "score": 4,
+            "strength": "Concise mention of leadership and project scope.",
+            "main_issue": "Lacks depth, no STAR structure, no metrics or context.",
+            "retry_suggested": true,
+            "retry_instruction": "Expand by adding context, challenge, actions, results, and a measurable outcome. Use STAR format and include numbers to show impact.",
+            "good": [
+              "Clear mention of team size and project type"
+            ],
+            "biggest_issue": "Too brief to convey real impact or learning.",
+            "relevance": {
+              "verdict": "directly",
+              "note": "The answer directly states the candidate led a project, but it misses detail and depth expected for an intermediate level."
+            },
+            "sentences": [
+              {
+                "problem": "I led a two-person team to ship a payment retry system.",
+                "fix": "I led a two-person team to design, develop, and launch a payment retry system that cut failed transaction rates by 30% within six months."
+              }
+            ],
+            "better_examples": [
+              {
+                "text": "I led a two-person team to build a payment retry system that reduced failed transaction rates by 30% in the first six months after launch.",
+                "why": "Adds context, action, and measurable impact."
+              },
+              {
+                "text": "I managed a two-person team to develop a payment retry system, improving customer satisfaction scores by 15% and decreasing support tickets by 25%.",
+                "why": "Provides specific metrics and demonstrates business value."
+              }
+            ],
+            "interviewer_want": "Concrete details, measurable results, and evidence of leadership and problem\u2011solving.",
+            "dimensions": {
+              "clarity": "Clear but overly brief",
+              "conciseness": "Very concise, but at cost of depth",
+              "specificity": "Low, no metrics or detailed actions"
+            },
+            "vocabulary": "Generic terms; lacks precision and impact words",
+            "fillers": "fillers=0, hedges=0",
+            "pacing": "very quick (12 words)",
+            "completeness": "Incomplete \u2013 answer trails off without elaboration",
+            "technical": "n/a",
+            "articulation": "unavailable",
+            "pronunciation": "unavailable",
+            "signals": {
+              "word_count": 12,
+              "sentence_count": 1,
+              "long_sentences": 0,
+              "filler_counts": {},
+              "filler_total": 0,
+              "qualifier_total": 0,
+              "repeated_words": {},
+              "slow_start": false,
+              "empty": false
+            },
+            "provider": "groq"
+          },
+          "coaching": {
+            "appreciation": "You clearly stated that you led a two\u2011person team to ship a payment retry system.",
+            "priority": "Priority: Add depth by using the STAR framework and include measurable results.",
+            "specific_feedback": "Your answer is concise but misses context, the challenge you faced, the actions you took, and any impact metrics, which are essential for an intermediate\u2011level response.",
+            "improvement": "Try: \"I led a two\u2011person team to design and launch a payment retry system that reduced failed transaction rates by 30% within six months, improving customer satisfaction and cutting support tickets by 25%.\"",
+            "next_step": "Keep building on this foundation, and you\u2019ll showcase strong leadership in the next question.",
+            "provider": "groq"
+          },
+          "model_answer": "Sure, let me walk you through that. I was the technical lead on a two\u2011person squad tasked with building a payment\u2011retry system for our e\u2011commerce platform. What I did was first map out the failure scenarios we were seeing \u2013 mainly network timeouts and insufficient funds \u2013 and then designed a lightweight, idempotent service that could queue failed transactions and automatically retry them up to three times with exponential back\u2011off. I split the work: my teammate focused on the API layer while I handled the retry logic and the integration tests. The key thing here is that we shipped the whole thing in six weeks, and after rollout we saw a 22% reduction in abandoned carts due to payment failures. It was a tight timeline, but the close collaboration and clear ownership helped us deliver on schedule and impact the bottom line.",
+          "visual_observations": [],
+          "visual_coaching": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "74b13bbc82",
+    "kind": "practice",
+    "created": 1790612161.248789,
+    "meta": {
+      "scenario": "story"
+    },
+    "turns": [
+      {
+        "transcript": "um like stuff",
+        "issue": "fillers"
+      }
+    ],
+    "status": "finished",
+    "report": {
+      "overall": 7.0
+    }
+  },
+  {
+    "id": "a8da06e1b8",
+    "kind": "interview",
+    "created": 1790612279.0924568,
+    "meta": {
+      "type": "behavioral",
+      "difficulty": "beginner",
+      "role": "Candidate",
+      "context": "",
+      "jd": "",
+      "num_questions": 2,
+      "questions": [
+        {
+          "q": "Tell me about a failure and what you learned.",
+          "topic": "self-intro"
+        },
+        {
+          "q": "Tell me about a challenge you overcame.",
+          "topic": "skills"
+        }
+      ],
+      "question_index": 2,
+      "question_source": "ai"
+    },
+    "turns": [
+      {
+        "question": "Tell me about a failure and what you learned.",
+        "answer": "We had a deploy issue um like stuff.",
+        "tid": "9e5362734f",
+        "visual_events": [],
+        "analysis_pending": false,
+        "evaluation": {
+          "score": 6.2,
+          "strength": "addressed the question",
+          "main_issue": "structure",
+          "retry_suggested": true,
+          "retry_instruction": "Retry leading with your main point in 10 seconds.",
+          "good": [
+            "addressed the question"
+          ],
+          "biggest_issue": "structure",
+          "relevance": {
+            "verdict": "partially",
+            "note": "Offline evaluation \u2014 full relevance analysis needs the AI."
+          },
+          "sentences": [],
+          "better_examples": [],
+          "interviewer_want": "A specific, concise answer with your personal contribution.",
+          "dimensions": {
+            "clarity": "8 words, 2 fillers",
+            "conciseness": "good length",
+            "specificity": "concrete enough"
+          },
+          "vocabulary": "precise enough",
+          "fillers": "2 fillers, 1 hedges in 8 words",
+          "pacing": "estimate from transcript only: 8 words",
+          "completeness": "answer seems cut short \u2014 finish the point",
+          "technical": "n/a",
+          "articulation": "unavailable",
+          "pronunciation": "unavailable",
+          "signals": {
+            "word_count": 8,
+            "sentence_count": 1,
+            "long_sentences": 0,
+            "filler_counts": {
+              "like": 1,
+              "um": 1
+            },
+            "filler_total": 2,
+            "qualifier_total": 1,
+            "repeated_words": {},
+            "slow_start": false,
+            "empty": false
+          },
+          "provider": "offline"
+        },
+        "coaching": {
+          "appreciation": "You're on the right track \u2014 keep building on this.",
+          "priority": "Priority: structure.",
+          "specific_feedback": "Score: 6.2/10. Good: addressed the question.",
+          "improvement": "Better: Retry leading with your main point in 10 seconds.",
+          "next_step": "You're doing well \u2014 let's try the next question.",
+          "provider": "offline"
+        },
+        "model_answer": "So basically, I'm a software developer with about two years of experience. I mainly work with Python and JavaScript, building web apps. At my current job, I helped fix our payment system which was failing a lot \u2014 I added some retry logic and that cut the failures by about 40 percent. I enjoy solving problems like that, finding what's broken and making it work better.",
+        "visual_coaching": ""
+      },
+      {
+        "question": "Tell me about a challenge you overcame.",
+        "answer": "[skipped]",
+        "bridge": "Good. Let's move on.",
+        "evaluation": {
+          "score": 0,
+          "strength": "",
+          "main_issue": "skipped",
+          "good": [],
+          "biggest_issue": "Skipped",
+          "relevance": {
+            "verdict": "skipped",
+            "note": "Question was skipped"
+          },
+          "dimensions": {},
+          "vocabulary": "",
+          "fillers": "",
+          "pacing": "",
+          "completeness": ""
+        },
+        "coaching": {
+          "appreciation": "",
+          "priority": "",
+          "specific_feedback": "Question was skipped.",
+          "improvement": "",
+          "next_step": ""
+        },
+        "model_answer": ""
+      }
+    ],
+    "status": "finished",
+    "report": {
+      "overall": 3.1,
+      "answers_evaluated": 2,
+      "best_answer": {
+        "question": "Tell me about a failure and what you learned.",
+        "score": 6.2
+      },
+      "weakest_answer": {
+        "question": "Tell me about a challenge you overcame.",
+        "issue": "skipped"
+      },
+      "summary": "Answered 2 questions, avg score 3.1.",
+      "strengths": [
+        "showed up and communicated",
+        "gave relevant examples"
+      ],
+      "biggest_weakness": "structure",
+      "communication": "Work on shorter sentences and fewer fillers.",
+      "technical": "Add concrete reasoning and examples.",
+      "role_alignment": "Tie answers to JD requirements explicitly.",
+      "training": [
+        "Lead with the main point in 10 seconds.",
+        "Use one specific project example per answer."
+      ],
+      "top_priority": "structure",
+      "next_practice": "Spontaneous Q&A",
+      "recurring_problems": [
+        "structure",
+        "skipped"
+      ],
+      "relevance_summary": "0/2 answers directly addressed the question.",
+      "sentence_patterns": "Across 2 answers: 2 fillers, 0 over-long sentences, 8 words total.",
+      "pronunciation_note": "Not enough data to evaluate pronunciation/articulation: sessions are scored from text transcripts, not analyzed audio.",
+      "provider": "offline",
+      "question_details": [
+        {
+          "question": "Tell me about a failure and what you learned.",
+          "answer": "We had a deploy issue um like stuff.",
+          "evaluation": {
+            "score": 6.2,
+            "strength": "addressed the question",
+            "main_issue": "structure",
+            "retry_suggested": true,
+            "retry_instruction": "Retry leading with your main point in 10 seconds.",
+            "good": [
+              "addressed the question"
+            ],
+            "biggest_issue": "structure",
+            "relevance": {
+              "verdict": "partially",
+              "note": "Offline evaluation \u2014 full relevance analysis needs the AI."
+            },
+            "sentences": [],
+            "better_examples": [],
+            "interviewer_want": "A specific, concise answer with your personal contribution.",
+            "dimensions": {
+              "clarity": "8 words, 2 fillers",
+              "conciseness": "good length",
+              "specificity": "concrete enough"
+            },
+            "vocabulary": "precise enough",
+            "fillers": "2 fillers, 1 hedges in 8 words",
+            "pacing": "estimate from transcript only: 8 words",
+            "completeness": "answer seems cut short \u2014 finish the point",
+            "technical": "n/a",
+            "articulation": "unavailable",
+            "pronunciation": "unavailable",
+            "signals": {
+              "word_count": 8,
+              "sentence_count": 1,
+              "long_sentences": 0,
+              "filler_counts": {
+                "like": 1,
+                "um": 1
+              },
+              "filler_total": 2,
+              "qualifier_total": 1,
+              "repeated_words": {},
+              "slow_start": false,
+              "empty": false
+            },
+            "provider": "offline"
+          },
+          "coaching": {
+            "appreciation": "You're on the right track \u2014 keep building on this.",
+            "priority": "Priority: structure.",
+            "specific_feedback": "Score: 6.2/10. Good: addressed the question.",
+            "improvement": "Better: Retry leading with your main point in 10 seconds.",
+            "next_step": "You're doing well \u2014 let's try the next question.",
+            "provider": "offline"
+          },
+          "model_answer": "So basically, I'm a software developer with about two years of experience. I mainly work with Python and JavaScript, building web apps. At my current job, I helped fix our payment system which was failing a lot \u2014 I added some retry logic and that cut the failures by about 40 percent. I enjoy solving problems like that, finding what's broken and making it work better.",
+          "visual_observations": [],
+          "visual_coaching": ""
+        },
+        {
+          "question": "Tell me about a challenge you overcame.",
+          "answer": "[skipped]",
+          "evaluation": {
+            "score": 0,
+            "strength": "",
+            "main_issue": "skipped",
+            "good": [],
+            "biggest_issue": "Skipped",
+            "relevance": {
+              "verdict": "skipped",
+              "note": "Question was skipped"
+            },
+            "dimensions": {},
+            "vocabulary": "",
+            "fillers": "",
+            "pacing": "",
+            "completeness": ""
+          },
+          "coaching": {
+            "appreciation": "",
+            "priority": "",
+            "specific_feedback": "Question was skipped.",
+            "improvement": "",
+            "next_step": ""
+          },
+          "model_answer": "",
+          "visual_observations": [],
+          "visual_coaching": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "fc11bfc8b7",
+    "kind": "interview",
+    "created": 1790612315.6736906,
+    "meta": {
+      "type": "hr",
+      "difficulty": "beginner",
+      "role": "Candidate",
+      "context": "",
+      "jd": "",
+      "num_questions": 2,
+      "questions": [
+        {
+          "q": "What is your biggest strength?",
+          "topic": "self-intro"
+        },
+        {
+          "q": "Why this role?",
+          "topic": "skills"
+        }
+      ],
+      "question_index": 1,
+      "question_source": "ai"
+    },
+    "turns": [
+      {
+        "question": "What is your biggest strength?",
+        "answer": "I handled a production incident by rolling back and adding alerts.",
+        "tid": "4464d8ac8c",
+        "visual_events": [],
+        "analysis_pending": false,
+        "evaluation": {
+          "score": 7.0,
+          "strength": "addressed the question",
+          "main_issue": "structure",
+          "retry_suggested": false,
+          "retry_instruction": "Retry leading with your main point in 10 seconds.",
+          "good": [
+            "addressed the question"
+          ],
+          "biggest_issue": "structure",
+          "relevance": {
+            "verdict": "partially",
+            "note": "Offline evaluation \u2014 full relevance analysis needs the AI."
+          },
+          "sentences": [],
+          "better_examples": [],
+          "interviewer_want": "A specific, concise answer with your personal contribution.",
+          "dimensions": {
+            "clarity": "11 words, 0 fillers",
+            "conciseness": "good length",
+            "specificity": "concrete enough"
+          },
+          "vocabulary": "precise enough",
+          "fillers": "0 fillers, 0 hedges in 11 words",
+          "pacing": "estimate from transcript only: 11 words",
+          "completeness": "answer seems cut short \u2014 finish the point",
+          "technical": "n/a",
+          "articulation": "unavailable",
+          "pronunciation": "unavailable",
+          "signals": {
+            "word_count": 11,
+            "sentence_count": 1,
+            "long_sentences": 0,
+            "filler_counts": {},
+            "filler_total": 0,
+            "qualifier_total": 0,
+            "repeated_words": {},
+            "slow_start": false,
+            "empty": false
+          },
+          "provider": "offline"
+        },
+        "coaching": {
+          "appreciation": "Nice work \u2014 you communicated your idea clearly.",
+          "priority": "Priority: structure.",
+          "specific_feedback": "Score: 7.0/10. Good: addressed the question.",
+          "improvement": "Better: Retry leading with your main point in 10 seconds.",
+          "next_step": "You're doing well \u2014 let's try the next question.",
+          "provider": "offline"
+        },
+        "model_answer": "I'd say my biggest strength is that I'm really good at figuring out what's wrong and fixing it step by step. Like when our checkout was broken, I didn't just guess \u2014 I looked at the logs, found the specific error, and wrote a test to make sure it wouldn't happen again. I think that patient, methodical approach helps me a lot.",
+        "visual_coaching": ""
+      },
+      {
+        "question": "Why this role?",
+        "answer": null,
+        "bridge": "Good. Let's move on."
+      }
+    ],
+    "status": "finished",
+    "report": {
+      "overall": 7.0,
+      "answers_evaluated": 1,
+      "best_answer": {
+        "question": "What is your biggest strength?",
+        "score": 7.0
+      },
+      "weakest_answer": {
+        "question": "What is your biggest strength?",
+        "issue": "structure"
+      },
+      "summary": "Answered 1 questions, avg score 7.0.",
+      "strengths": [
+        "showed up and communicated",
+        "gave relevant examples"
+      ],
+      "biggest_weakness": "structure",
+      "communication": "Work on shorter sentences and fewer fillers.",
+      "technical": "Add concrete reasoning and examples.",
+      "role_alignment": "Tie answers to JD requirements explicitly.",
+      "training": [
+        "Lead with the main point in 10 seconds.",
+        "Use one specific project example per answer."
+      ],
+      "top_priority": "structure",
+      "next_practice": "Spontaneous Q&A",
+      "recurring_problems": [
+        "structure"
+      ],
+      "relevance_summary": "0/1 answers directly addressed the question.",
+      "sentence_patterns": "Across 1 answers: 0 fillers, 0 over-long sentences, 11 words total.",
+      "pronunciation_note": "Not enough data to evaluate pronunciation/articulation: sessions are scored from text transcripts, not analyzed audio.",
+      "provider": "offline",
+      "question_details": [
+        {
+          "question": "What is your biggest strength?",
+          "answer": "I handled a production incident by rolling back and adding alerts.",
+          "evaluation": {
+            "score": 7.0,
+            "strength": "addressed the question",
+            "main_issue": "structure",
+            "retry_suggested": false,
+            "retry_instruction": "Retry leading with your main point in 10 seconds.",
+            "good": [
+              "addressed the question"
+            ],
+            "biggest_issue": "structure",
+            "relevance": {
+              "verdict": "partially",
+              "note": "Offline evaluation \u2014 full relevance analysis needs the AI."
+            },
+            "sentences": [],
+            "better_examples": [],
+            "interviewer_want": "A specific, concise answer with your personal contribution.",
+            "dimensions": {
+              "clarity": "11 words, 0 fillers",
+              "conciseness": "good length",
+              "specificity": "concrete enough"
+            },
+            "vocabulary": "precise enough",
+            "fillers": "0 fillers, 0 hedges in 11 words",
+            "pacing": "estimate from transcript only: 11 words",
+            "completeness": "answer seems cut short \u2014 finish the point",
+            "technical": "n/a",
+            "articulation": "unavailable",
+            "pronunciation": "unavailable",
+            "signals": {
+              "word_count": 11,
+              "sentence_count": 1,
+              "long_sentences": 0,
+              "filler_counts": {},
+              "filler_total": 0,
+              "qualifier_total": 0,
+              "repeated_words": {},
+              "slow_start": false,
+              "empty": false
+            },
+            "provider": "offline"
+          },
+          "coaching": {
+            "appreciation": "Nice work \u2014 you communicated your idea clearly.",
+            "priority": "Priority: structure.",
+            "specific_feedback": "Score: 7.0/10. Good: addressed the question.",
+            "improvement": "Better: Retry leading with your main point in 10 seconds.",
+            "next_step": "You're doing well \u2014 let's try the next question.",
+            "provider": "offline"
+          },
+          "model_answer": "I'd say my biggest strength is that I'm really good at figuring out what's wrong and fixing it step by step. Like when our checkout was broken, I didn't just guess \u2014 I looked at the logs, found the specific error, and wrote a test to make sure it wouldn't happen again. I think that patient, methodical approach helps me a lot.",
+          "visual_observations": [],
+          "visual_coaching": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "8125696b60",
+    "kind": "interview",
+    "created": 1790612338.9423234,
+    "meta": {
+      "type": "hr",
+      "difficulty": "beginner",
+      "role": "Senior HR Interviewer",
+      "context": "",
+      "jd": "",
+      "num_questions": 3,
+      "questions": [
+        {
+          "q": "What attracted you to this position and our company culture, and how does it align with your career goals?",
+          "topic": "motivation"
+        },
+        {
+          "q": "Can you give a concise 60\u2011second overview of your background, highlighting experiences that prepared you for an HR Assistant role?",
+          "topic": "self-intro"
+        },
+        {
+          "q": "Describe a time you worked in a team to resolve a workplace issue. What was your role, the actions you took, and the outcome?",
+          "topic": "teamwork"
+        }
+      ],
+      "question_index": 2,
+      "question_source": "ai"
+    },
+    "turns": [
+      {
+        "question": "What attracted you to this position and our company culture, and how does it align with your career goals?",
+        "answer": "[skipped]",
+        "evaluation": {
+          "score": 0,
+          "strength": "",
+          "main_issue": "skipped",
+          "good": [],
+          "biggest_issue": "Skipped",
+          "relevance": {
+            "verdict": "skipped",
+            "note": "Question was skipped"
+          },
+          "dimensions": {},
+          "vocabulary": "",
+          "fillers": "",
+          "pacing": "",
+          "completeness": ""
+        },
+        "coaching": {
+          "appreciation": "",
+          "priority": "",
+          "specific_feedback": "Question was skipped.",
+          "improvement": "",
+          "next_step": ""
+        },
+        "model_answer": ""
+      },
+      {
+        "question": "Can you give a concise 60\u2011second overview of your background, highlighting experiences that prepared you for an HR Assistant role?",
+        "answer": "[topic changed]",
+        "bridge": "Moving on.",
+        "evaluation": {
+          "score": 0,
+          "strength": "",
+          "main_issue": "topic_changed",
+          "good": [],
+          "biggest_issue": "Topic changed",
+          "relevance": {
+            "verdict": "skipped",
+            "note": "Switched to different topic"
+          },
+          "dimensions": {},
+          "vocabulary": "",
+          "fillers": "",
+          "pacing": "",
+          "completeness": ""
+        },
+        "coaching": {
+          "appreciation": "",
+          "priority": "",
+          "specific_feedback": "Switched to a different topic.",
+          "improvement": "",
+          "next_step": ""
+        },
+        "model_answer": ""
+      },
+      {
+        "question": "Describe a time you worked in a team to resolve a workplace issue. What was your role, the actions you took, and the outcome?",
+        "answer": null,
+        "bridge": "Switching to a new topic."
+      }
+    ],
+    "status": "active"
+  },
+  {
+    "id": "4e932d07f6",
+    "kind": "interview",
+    "created": 1790612339.1241853,
+    "meta": {
+      "type": "hr",
+      "difficulty": "beginner",
+      "role": "Candidate",
+      "context": "",
+      "jd": "",
+      "num_questions": 1,
+      "questions": [
+        {
+          "q": "What is your biggest strength?",
+          "topic": "self-intro"
+        }
+      ],
+      "question_index": 1,
+      "question_source": "ai"
+    },
+    "turns": [
+      {
+        "question": "What is your biggest strength?",
+        "answer": "I prioritize tasks by impact and deadlines.",
+        "tid": "57bcd4f2e1",
+        "visual_events": [
+          {
+            "type": "gaze_away",
+            "duration": 5,
+            "detail": "Looked away"
+          },
+          {
+            "type": "slouching",
+            "duration": 4,
+            "detail": "Slouched"
+          }
+        ],
+        "analysis_pending": false,
+        "evaluation": {
+          "score": 7.0,
+          "strength": "addressed the question",
+          "main_issue": "structure",
+          "retry_suggested": false,
+          "retry_instruction": "Retry leading with your main point in 10 seconds.",
+          "good": [
+            "addressed the question"
+          ],
+          "biggest_issue": "structure",
+          "relevance": {
+            "verdict": "partially",
+            "note": "Offline evaluation \u2014 full relevance analysis needs the AI."
+          },
+          "sentences": [],
+          "better_examples": [],
+          "interviewer_want": "A specific, concise answer with your personal contribution.",
+          "dimensions": {
+            "clarity": "7 words, 0 fillers",
+            "conciseness": "good length",
+            "specificity": "concrete enough"
+          },
+          "vocabulary": "precise enough",
+          "fillers": "0 fillers, 0 hedges in 7 words",
+          "pacing": "estimate from transcript only: 7 words",
+          "completeness": "answer seems cut short \u2014 finish the point",
+          "technical": "n/a",
+          "articulation": "unavailable",
+          "pronunciation": "unavailable",
+          "signals": {
+            "word_count": 7,
+            "sentence_count": 1,
+            "long_sentences": 0,
+            "filler_counts": {},
+            "filler_total": 0,
+            "qualifier_total": 0,
+            "repeated_words": {},
+            "slow_start": false,
+            "empty": false
+          },
+          "provider": "offline"
+        },
+        "coaching": {
+          "appreciation": "Nice work \u2014 you communicated your idea clearly.",
+          "priority": "Priority: structure.",
+          "specific_feedback": "Score: 7.0/10. Good: addressed the question.",
+          "improvement": "Better: Retry leading with your main point in 10 seconds.",
+          "next_step": "You're doing well \u2014 let's try the next question.",
+          "provider": "offline"
+        },
+        "model_answer": "I'd say my biggest strength is that I'm really good at figuring out what's wrong and fixing it step by step. Like when our checkout was broken, I didn't just guess \u2014 I looked at the logs, found the specific error, and wrote a test to make sure it wouldn't happen again. I think that patient, methodical approach helps me a lot.",
+        "visual_coaching": "Try to look at the camera more \u2014 it helps you connect with the interviewer."
+      }
+    ],
+    "status": "finished",
+    "report": {
+      "overall": 7.0,
+      "answers_evaluated": 1,
+      "best_answer": {
+        "question": "What is your biggest strength?",
+        "score": 7.0
+      },
+      "weakest_answer": {
+        "question": "What is your biggest strength?",
+        "issue": "structure"
+      },
+      "summary": "Answered 1 questions, avg score 7.0.",
+      "strengths": [
+        "showed up and communicated",
+        "gave relevant examples"
+      ],
+      "biggest_weakness": "structure",
+      "communication": "Work on shorter sentences and fewer fillers.",
+      "technical": "Add concrete reasoning and examples.",
+      "role_alignment": "Tie answers to JD requirements explicitly.",
+      "training": [
+        "Lead with the main point in 10 seconds.",
+        "Use one specific project example per answer."
+      ],
+      "top_priority": "structure",
+      "next_practice": "Spontaneous Q&A",
+      "recurring_problems": [
+        "structure"
+      ],
+      "relevance_summary": "0/1 answers directly addressed the question.",
+      "sentence_patterns": "Across 1 answers: 0 fillers, 0 over-long sentences, 7 words total.",
+      "pronunciation_note": "Not enough data to evaluate pronunciation/articulation: sessions are scored from text transcripts, not analyzed audio.",
+      "provider": "offline",
+      "question_details": [
+        {
+          "question": "What is your biggest strength?",
+          "answer": "I prioritize tasks by impact and deadlines.",
+          "evaluation": {
+            "score": 7.0,
+            "strength": "addressed the question",
+            "main_issue": "structure",
+            "retry_suggested": false,
+            "retry_instruction": "Retry leading with your main point in 10 seconds.",
+            "good": [
+              "addressed the question"
+            ],
+            "biggest_issue": "structure",
+            "relevance": {
+              "verdict": "partially",
+              "note": "Offline evaluation \u2014 full relevance analysis needs the AI."
+            },
+            "sentences": [],
+            "better_examples": [],
+            "interviewer_want": "A specific, concise answer with your personal contribution.",
+            "dimensions": {
+              "clarity": "7 words, 0 fillers",
+              "conciseness": "good length",
+              "specificity": "concrete enough"
+            },
+            "vocabulary": "precise enough",
+            "fillers": "0 fillers, 0 hedges in 7 words",
+            "pacing": "estimate from transcript only: 7 words",
+            "completeness": "answer seems cut short \u2014 finish the point",
+            "technical": "n/a",
+            "articulation": "unavailable",
+            "pronunciation": "unavailable",
+            "signals": {
+              "word_count": 7,
+              "sentence_count": 1,
+              "long_sentences": 0,
+              "filler_counts": {},
+              "filler_total": 0,
+              "qualifier_total": 0,
+              "repeated_words": {},
+              "slow_start": false,
+              "empty": false
+            },
+            "provider": "offline"
+          },
+          "coaching": {
+            "appreciation": "Nice work \u2014 you communicated your idea clearly.",
+            "priority": "Priority: structure.",
+            "specific_feedback": "Score: 7.0/10. Good: addressed the question.",
+            "improvement": "Better: Retry leading with your main point in 10 seconds.",
+            "next_step": "You're doing well \u2014 let's try the next question.",
+            "provider": "offline"
+          },
+          "model_answer": "I'd say my biggest strength is that I'm really good at figuring out what's wrong and fixing it step by step. Like when our checkout was broken, I didn't just guess \u2014 I looked at the logs, found the specific error, and wrote a test to make sure it wouldn't happen again. I think that patient, methodical approach helps me a lot.",
+          "visual_observations": [
+            {
+              "type": "gaze_away",
+              "duration": 5,
+              "detail": "Looked away"
+            },
+            {
+              "type": "slouching",
+              "duration": 4,
+              "detail": "Slouched"
+            }
+          ],
+          "visual_coaching": "Try to look at the camera more \u2014 it helps you connect with the interviewer."
+        }
+      ],
+      "visual_communication": {
+        "camera_attention": {
+          "gaze_away_count": 1,
+          "gaze_away_total_sec": 5,
+          "rating": "good"
+        },
+        "posture": {
+          "slouch_count": 1,
+          "slouch_total_sec": 4,
+          "rating": "good"
+        },
+        "movement": {
+          "excessive_count": 0,
+          "rating": "good"
+        },
+        "gestures": {
+          "hands_hidden_count": 0,
+          "gesture_count": 0,
+          "gesture_breakdown": {},
+          "rating": "needs_improvement"
+        },
+        "body_alignment": {
+          "torso_lean_count": 0,
+          "shoulder_rotation_count": 0,
+          "rating": "good"
+        },
+        "patterns": [
+          "Limited use of hand gestures for emphasis"
+        ],
+        "strengths": [
+          "Good hand visibility for gesture communication",
+          "Stable, centered body positioning"
+        ],
+        "priority": "Improve camera attention \u2014 look at the lens during key points"
+      }
+    }
+  },
+  {
+    "id": "9bdc232cb8",
+    "kind": "interview",
+    "created": 1790612352.421973,
+    "meta": {
+      "type": "hr",
+      "difficulty": "advanced",
+      "role": "Candidate",
+      "context": "",
+      "jd": "",
+      "num_questions": 3,
+      "questions": [
+        {
+          "q": "What is your greatest strength?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Describe a conflict you resolved.",
+          "topic": "question-list"
+        },
+        {
+          "q": "Tell me about a failure.",
+          "topic": "question-list"
+        }
+      ],
+      "question_index": 0,
+      "question_source": "user"
+    },
+    "turns": [
+      {
+        "question": "What is your greatest strength?",
+        "answer": null
+      }
+    ],
+    "status": "active"
+  },
+  {
+    "id": "9a6c69e046",
+    "kind": "interview",
+    "created": 1790612352.4544013,
+    "meta": {
+      "type": "mixed",
+      "difficulty": "intermediate",
+      "role": "Candidate",
+      "context": "",
+      "jd": "",
+      "num_questions": 4,
+      "questions": [
+        {
+          "q": "Question 0 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 1 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 2 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 3 of the list?",
+          "topic": "question-list"
+        }
+      ],
+      "question_index": 0,
+      "question_source": "user"
+    },
+    "turns": [
+      {
+        "question": "Question 0 of the list?",
+        "answer": null
+      }
+    ],
+    "status": "active"
+  },
+  {
+    "id": "316aec73e6",
+    "kind": "interview",
+    "created": 1790612352.471001,
+    "meta": {
+      "type": "mixed",
+      "difficulty": "intermediate",
+      "role": "Candidate",
+      "context": "",
+      "jd": "",
+      "num_questions": 10,
+      "questions": [
+        {
+          "q": "Question 0 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 1 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 2 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 3 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 4 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 5 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 6 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 7 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 8 of the list?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Question 9 of the list?",
+          "topic": "question-list"
+        }
+      ],
+      "question_index": 0,
+      "question_source": "user"
+    },
+    "turns": [
+      {
+        "question": "Question 0 of the list?",
+        "answer": null
+      }
+    ],
+    "status": "active"
+  },
+  {
+    "id": "5682ac4de8",
+    "kind": "interview",
+    "created": 1790612352.4950411,
+    "meta": {
+      "type": "mixed",
+      "difficulty": "intermediate",
+      "role": "Candidate",
+      "context": "",
+      "jd": "",
+      "num_questions": 8,
+      "questions": [
+        {
+          "q": "Unique question 4?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Unique question 3?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Unique question 7?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Unique question 1?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Unique question 0?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Unique question 2?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Unique question 5?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Unique question 6?",
+          "topic": "question-list"
+        }
+      ],
+      "question_index": 0,
+      "question_source": "user"
+    },
+    "turns": [
+      {
+        "question": "Unique question 4?",
+        "answer": null
+      }
+    ],
+    "status": "active"
+  },
+  {
+    "id": "db54cccc92",
+    "kind": "interview",
+    "created": 1790612352.512251,
+    "meta": {
+      "type": "mixed",
+      "difficulty": "intermediate",
+      "role": "Candidate",
+      "context": "",
+      "jd": "",
+      "num_questions": 2,
+      "questions": [
+        {
+          "q": "What is your greatest strength?",
+          "topic": "question-list"
+        },
+        {
+          "q": "Describe a project you led.",
+          "topic": "question-list"
+        }
+      ],
+      "question_index": 2,
+      "question_source": "user"
+    },
+    "turns": [
+      {
+        "question": "What is your greatest strength?",
+        "answer": "I stay calm under pressure and communicate early.",
+        "tid": "a1a6a117c0",
+        "visual_events": [],
+        "analysis_pending": false,
+        "evaluation": {
+          "score": 7.0,
+          "strength": "addressed the question",
+          "main_issue": "structure",
+          "retry_suggested": false,
+          "retry_instruction": "Retry leading with your main point in 10 seconds.",
+          "good": [
+            "addressed the question"
+          ],
+          "biggest_issue": "structure",
+          "relevance": {
+            "verdict": "partially",
+            "note": "Offline evaluation \u2014 full relevance analysis needs the AI."
+          },
+          "sentences": [],
+          "better_examples": [],
+          "interviewer_want": "A specific, concise answer with your personal contribution.",
+          "dimensions": {
+            "clarity": "8 words, 0 fillers",
+            "conciseness": "good length",
+            "specificity": "concrete enough"
+          },
+          "vocabulary": "precise enough",
+          "fillers": "0 fillers, 0 hedges in 8 words",
+          "pacing": "estimate from transcript only: 8 words",
+          "completeness": "answer seems cut short \u2014 finish the point",
+          "technical": "n/a",
+          "articulation": "unavailable",
+          "pronunciation": "unavailable",
+          "signals": {
+            "word_count": 8,
+            "sentence_count": 1,
+            "long_sentences": 0,
+            "filler_counts": {},
+            "filler_total": 0,
+            "qualifier_total": 0,
+            "repeated_words": {},
+            "slow_start": false,
+            "empty": false
+          },
+          "provider": "offline"
+        },
+        "coaching": {
+          "appreciation": "Strong answer \u2014 you communicated clearly and hit the key points.",
+          "priority": "Priority: structure.",
+          "specific_feedback": "Score: 7.0/10. What worked: addressed the question.",
+          "improvement": "Better: Retry leading with your main point in 10 seconds.",
+          "next_step": "Ready for the next question \u2014 keep building on this.",
+          "provider": "offline"
+        },
+        "model_answer": "I'd say my biggest strength is debugging complex systems. I'm methodical about it \u2014 I start with the logs, look for patterns, write a failing test to reproduce the issue, then fix it. For example, we had this intermittent payment failure that only happened in production. I traced it to a race condition in the retry queue, wrote a test that reproduced it, and fixed it with proper locking. That approach \u2014 reproduce first, then fix \u2014 has saved me countless hours.",
+        "visual_coaching": ""
+      },
+      {
+        "question": "Describe a project you led.",
+        "answer": "I led a two-person team to ship a payment retry system.",
+        "bridge": "Good. Let's move on.",
+        "tid": "0cb732c135",
+        "visual_events": [],
+        "analysis_pending": false,
+        "evaluation": {
+          "score": 7.0,
+          "strength": "addressed the question",
+          "main_issue": "structure",
+          "retry_suggested": false,
+          "retry_instruction": "Retry leading with your main point in 10 seconds.",
+          "good": [
+            "addressed the question"
+          ],
+          "biggest_issue": "structure",
+          "relevance": {
+            "verdict": "partially",
+            "note": "Offline evaluation \u2014 full relevance analysis needs the AI."
+          },
+          "sentences": [],
+          "better_examples": [],
+          "interviewer_want": "A specific, concise answer with your personal contribution.",
+          "dimensions": {
+            "clarity": "12 words, 0 fillers",
+            "conciseness": "good length",
+            "specificity": "concrete enough"
+          },
+          "vocabulary": "precise enough",
+          "fillers": "0 fillers, 0 hedges in 12 words",
+          "pacing": "estimate from transcript only: 12 words",
+          "completeness": "answer seems cut short \u2014 finish the point",
+          "technical": "n/a",
+          "articulation": "unavailable",
+          "pronunciation": "unavailable",
+          "signals": {
+            "word_count": 12,
+            "sentence_count": 1,
+            "long_sentences": 0,
+            "filler_counts": {},
+            "filler_total": 0,
+            "qualifier_total": 0,
+            "repeated_words": {},
+            "slow_start": false,
+            "empty": false
+          },
+          "provider": "offline"
+        },
+        "coaching": {
+          "appreciation": "Strong answer \u2014 you communicated clearly and hit the key points.",
+          "priority": "Priority: structure.",
+          "specific_feedback": "Score: 7.0/10. What worked: addressed the question.",
+          "improvement": "Better: Retry leading with your main point in 10 seconds.",
+          "next_step": "Ready for the next question \u2014 keep building on this.",
+          "provider": "offline"
+        },
+        "model_answer": "For this question, a strong answer would start with context \u2014 what the situation was, what your role was. Then move to what you actually did, specifically. Not 'we did this' but 'I did this.' End with the result \u2014 ideally with a number or concrete outcome. That structure works at any level.",
+        "visual_coaching": ""
+      }
+    ],
+    "status": "finished",
+    "report": {
+      "overall": 7.0,
+      "answers_evaluated": 2,
+      "best_answer": {
+        "question": "What is your greatest strength?",
+        "score": 7.0
+      },
+      "weakest_answer": {
+        "question": "What is your greatest strength?",
+        "issue": "structure"
+      },
+      "summary": "Answered 2 questions, avg score 7.0.",
+      "strengths": [
+        "showed up and communicated",
+        "gave relevant examples"
+      ],
+      "biggest_weakness": "structure",
+      "communication": "Work on shorter sentences and fewer fillers.",
+      "technical": "Add concrete reasoning and examples.",
+      "role_alignment": "Tie answers to JD requirements explicitly.",
+      "training": [
+        "Lead with the main point in 10 seconds.",
+        "Use one specific project example per answer."
+      ],
+      "top_priority": "structure",
+      "next_practice": "Spontaneous Q&A",
+      "recurring_problems": [
+        "structure"
+      ],
+      "relevance_summary": "0/2 answers directly addressed the question.",
+      "sentence_patterns": "Across 2 answers: 0 fillers, 0 over-long sentences, 20 words total.",
+      "pronunciation_note": "Not enough data to evaluate pronunciation/articulation: sessions are scored from text transcripts, not analyzed audio.",
+      "provider": "offline",
+      "question_details": [
+        {
+          "question": "What is your greatest strength?",
+          "answer": "I stay calm under pressure and communicate early.",
+          "evaluation": {
+            "score": 7.0,
+            "strength": "addressed the question",
+            "main_issue": "structure",
+            "retry_suggested": false,
+            "retry_instruction": "Retry leading with your main point in 10 seconds.",
+            "good": [
+              "addressed the question"
+            ],
+            "biggest_issue": "structure",
+            "relevance": {
+              "verdict": "partially",
+              "note": "Offline evaluation \u2014 full relevance analysis needs the AI."
+            },
+            "sentences": [],
+            "better_examples": [],
+            "interviewer_want": "A specific, concise answer with your personal contribution.",
+            "dimensions": {
+              "clarity": "8 words, 0 fillers",
+              "conciseness": "good length",
+              "specificity": "concrete enough"
+            },
+            "vocabulary": "precise enough",
+            "fillers": "0 fillers, 0 hedges in 8 words",
+            "pacing": "estimate from transcript only: 8 words",
+            "completeness": "answer seems cut short \u2014 finish the point",
+            "technical": "n/a",
+            "articulation": "unavailable",
+            "pronunciation": "unavailable",
+            "signals": {
+              "word_count": 8,
+              "sentence_count": 1,
+              "long_sentences": 0,
+              "filler_counts": {},
+              "filler_total": 0,
+              "qualifier_total": 0,
+              "repeated_words": {},
+              "slow_start": false,
+              "empty": false
+            },
+            "provider": "offline"
+          },
+          "coaching": {
+            "appreciation": "Strong answer \u2014 you communicated clearly and hit the key points.",
+            "priority": "Priority: structure.",
+            "specific_feedback": "Score: 7.0/10. What worked: addressed the question.",
+            "improvement": "Better: Retry leading with your main point in 10 seconds.",
+            "next_step": "Ready for the next question \u2014 keep building on this.",
+            "provider": "offline"
+          },
+          "model_answer": "I'd say my biggest strength is debugging complex systems. I'm methodical about it \u2014 I start with the logs, look for patterns, write a failing test to reproduce the issue, then fix it. For example, we had this intermittent payment failure that only happened in production. I traced it to a race condition in the retry queue, wrote a test that reproduced it, and fixed it with proper locking. That approach \u2014 reproduce first, then fix \u2014 has saved me countless hours.",
+          "visual_observations": [],
+          "visual_coaching": ""
+        },
+        {
+          "question": "Describe a project you led.",
+          "answer": "I led a two-person team to ship a payment retry system.",
+          "evaluation": {
+            "score": 7.0,
+            "strength": "addressed the question",
+            "main_issue": "structure",
+            "retry_suggested": false,
+            "retry_instruction": "Retry leading with your main point in 10 seconds.",
+            "good": [
+              "addressed the question"
+            ],
+            "biggest_issue": "structure",
+            "relevance": {
+              "verdict": "partially",
+              "note": "Offline evaluation \u2014 full relevance analysis needs the AI."
+            },
+            "sentences": [],
+            "better_examples": [],
+            "interviewer_want": "A specific, concise answer with your personal contribution.",
+            "dimensions": {
+              "clarity": "12 words, 0 fillers",
+              "conciseness": "good length",
+              "specificity": "concrete enough"
+            },
+            "vocabulary": "precise enough",
+            "fillers": "0 fillers, 0 hedges in 12 words",
+            "pacing": "estimate from transcript only: 12 words",
+            "completeness": "answer seems cut short \u2014 finish the point",
+            "technical": "n/a",
+            "articulation": "unavailable",
+            "pronunciation": "unavailable",
+            "signals": {
+              "word_count": 12,
+              "sentence_count": 1,
+              "long_sentences": 0,
+              "filler_counts": {},
+              "filler_total": 0,
+              "qualifier_total": 0,
+              "repeated_words": {},
+              "slow_start": false,
+              "empty": false
+            },
+            "provider": "offline"
+          },
+          "coaching": {
+            "appreciation": "Strong answer \u2014 you communicated clearly and hit the key points.",
+            "priority": "Priority: structure.",
+            "specific_feedback": "Score: 7.0/10. What worked: addressed the question.",
+            "improvement": "Better: Retry leading with your main point in 10 seconds.",
+            "next_step": "Ready for the next question \u2014 keep building on this.",
+            "provider": "offline"
+          },
+          "model_answer": "For this question, a strong answer would start with context \u2014 what the situation was, what your role was. Then move to what you actually did, specifically. Not 'we did this' but 'I did this.' End with the result \u2014 ideally with a number or concrete outcome. That structure works at any level.",
+          "visual_observations": [],
+          "visual_coaching": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "4f4cc28f48",
+    "kind": "interview",
+    "created": 1790612407.5590518,
+    "meta": {
+      "type": "mixed",
+      "difficulty": "intermediate",
+      "role": "interviewer",
+      "context": "",
+      "jd": "",
+      "num_questions": 5,
+      "questions": [
+        {
+          "q": "In your r\u00e9sum\u00e9 you mention leading the migration of the legacy inventory system to a micro\u2011services architecture\u2014what was your exact role, and how did you measure success?",
+          "topic": "project-ownership"
+        },
+        {
+          "q": "The job requires experience with CI/CD pipelines; can you detail how you set up automated testing and deployment for the Z product, and any challenges you overcame?",
+          "topic": "skills-alignment"
+        },
+        {
+          "q": "Describe a complex algorithm you implemented in the Y project, focusing on the trade\u2011offs you evaluated and the performance impact.",
+          "topic": "technical-depth"
+        },
+        {
+          "q": "Can you walk me through your career journey, highlighting how your recent role at Company X prepared you for this position?",
+          "topic": "self-intro"
+        },
+        {
+          "q": "Tell me about a time you disagreed with a teammate on a technical solution, using the STAR format\u2014what was the outcome and what did you learn?",
+          "topic": "behavioral-star"
+        }
+      ],
+      "question_index": 0,
+      "question_source": "ai"
+    },
+    "turns": [
+      {
+        "question": "In your r\u00e9sum\u00e9 you mention leading the migration of the legacy inventory system to a micro\u2011services architecture\u2014what was your exact role, and how did you measure success?",
+        "answer": null
+      }
+    ],
+    "status": "active"
+  },
+  {
+    "id": "4cf3a07e06",
+    "kind": "interview",
+    "created": 1790612731.4664893,
+    "meta": {
+      "type": "mixed",
+      "difficulty": "intermediate",
+      "role": "interviewer",
+      "context": "",
+      "jd": "",
+      "num_questions": 5,
+      "questions": [
+        {
+          "q": "Walk me through the end\u2011to\u2011end development of the XYZ data pipeline you mentioned, focusing on the design decisions you owned and why you chose them.",
+          "topic": "project-ownership"
+        },
+        {
+          "q": "Your r\u00e9sum\u00e9 highlights experience with Python and REST APIs; how have you applied these skills to improve system performance in a recent project?",
+          "topic": "skills-alignment"
+        },
+        {
+          "q": "In that pipeline you used asynchronous processing\u2014can you explain the concurrency model you implemented and how you handled potential race conditions?",
+          "topic": "technical-depth"
+        },
+        {
+          "q": "Can you give a concise 2\u2011minute overview of your background, emphasizing the experiences that most directly relate to this role?",
+          "topic": "self-intro"
+        },
+        {
+          "q": "Describe a situation where a stakeholder disagreed with your technical approach; what was the context, your action, and the outcome?",
+          "topic": "behavioral-star"
+        }
+      ],
+      "question_index": 0,
+      "question_source": "ai"
+    },
+    "turns": [
+      {
+        "question": "Walk me through the end\u2011to\u2011end development of the XYZ data pipeline you mentioned, focusing on the design decisions you owned and why you chose them.",
+        "answer": null
+      }
+    ],
+    "status": "active"
+  }
+]
