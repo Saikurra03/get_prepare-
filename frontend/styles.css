@@ -90,16 +90,20 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15p
 .sidebar{width:var(--side);flex:0 0 var(--side);background:var(--glass-chrome);
   -webkit-backdrop-filter:blur(var(--glass-blur));backdrop-filter:blur(var(--glass-blur));
   box-shadow:var(--glass-rim), var(--shadow-side);border-right:1px solid var(--glass-line);
-  padding:18px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
-.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 14px}
+  padding:18px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:4px;
+  transition:width .2s ease,padding .2s ease}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 14px;justify-content:flex-start;
+  transition:justify-content .2s ease}
 .brand-mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--acc),var(--acc2));
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff}
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;flex:none}
 .brand-name{font-weight:800;letter-spacing:.14em;font-size:14px}
 .brand-sub{font-size:11px;color:var(--dim);letter-spacing:.02em}
-.nav-sec{font-size:11px;letter-spacing:.12em;color:var(--dim);padding:12px 10px 5px;text-transform:uppercase}
+.nav-sec{font-size:11px;letter-spacing:.12em;color:var(--dim);padding:12px 10px 5px;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden}
 .nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);
-  color:var(--mut);text-decoration:none;font-weight:600;font-size:14px;border:1px solid transparent}
-.nav-item .ic{width:22px;text-align:center;opacity:.9}
+  color:var(--mut);text-decoration:none;font-weight:600;font-size:14px;border:1px solid transparent;
+  transition:background .15s ease,color .15s ease,padding .2s ease}
+.nav-item .ic{width:22px;text-align:center;opacity:.9;flex:none}
 .nav-item:hover{background:var(--hover);color:var(--ink);border-color:transparent}
 .nav-item.active{background:var(--surface);color:var(--ink);border-color:transparent;
   box-shadow:var(--shadow-active)}
@@ -219,10 +223,16 @@ a{color:var(--link)}
   .bottomnav .ic{display:block;font-size:18px}
 }
 body.nav-collapsed{--side:70px}
-body.nav-collapsed .sidebar{width:var(--side);flex-basis:var(--side)}
-body.nav-collapsed .nav-item span.tx,body.nav-collapsed .nav-sec,
-body.nav-collapsed .brand-name,body.nav-collapsed .brand-sub,
+body.nav-collapsed .sidebar{width:var(--side);flex-basis:var(--side);padding:18px 0}
+body.nav-collapsed .brand{justify-content:center;padding-left:0;padding-right:0}
+body.nav-collapsed .nav-item{justify-content:center;padding-left:0;padding-right:0}
+body.nav-collapsed .nav-item span.tx,
+body.nav-collapsed .nav-sec,
+body.nav-collapsed .brand-name,
+body.nav-collapsed .brand-sub,
 body.nav-collapsed .side-foot{display:none}
+body.nav-collapsed .nav-sub{display:none}
+body.nav-collapsed .nav-item .ic{width:auto}
 
 /* ============================================================
    Phase 3: Full-screen mock interview environment (/mock)
