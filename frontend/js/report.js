@@ -98,16 +98,16 @@ page.innerHTML = `<div class="card">Loading your report…</div>`;
 
       // Coaching
       const coachingHtml = coaching.priority ? `
-        <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:6px;padding:8px;margin-top:8px">
+        <div style="background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.2);border-radius:6px;padding:8px;margin-top:8px">
           ${coaching.appreciation ? `<div class="small" style="color:var(--ok)"><b>💬</b> ${esc(coaching.appreciation)}</div>` : ""}
           <div class="small"><b>🎯</b> ${esc(coaching.priority)}</div>
           ${coaching.specific_feedback ? `<div class="small">${esc(coaching.specific_feedback)}</div>` : ""}
-          ${coaching.improvement ? `<div class="small" style="color:var(--accent)"><b>✨</b> ${esc(coaching.improvement)}</div>` : ""}
+          ${coaching.improvement ? `<div class="small" style="color:var(--acc)"><b>✨</b> ${esc(coaching.improvement)}</div>` : ""}
         </div>` : "";
 
       // Model answer
       const modelHtml = qd.model_answer ? `
-        <div style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:6px;padding:8px;margin-top:8px">
+        <div style="background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.2);border-radius:6px;padding:8px;margin-top:8px">
           <div class="small" style="color:var(--ok);font-weight:600">📝 Model Answer (8-9/10)</div>
           <div class="small" style="line-height:1.5">${esc(qd.model_answer)}</div>
         </div>` : "";

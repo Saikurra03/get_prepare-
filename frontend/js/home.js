@@ -1,13 +1,7 @@
 /* Home / Command Center: what should we practice today? */
 const page = buildShell("Home", "BERREADY / Home");
 page.innerHTML = `
-  <div class="hero{
-    background:var(--glass-card);
-    backdrop-filter:blur(var(--glass-blur));
-    border-radius:var(--radius-lg);
-    padding:var(--space-lg)var(--space-xl);
-    margin-bottom:var(--space-lg);
-  }">
+  <div class="card" style="background:var(--clay-card);border-radius:var(--radius-lg);padding:var(--space-lg)var(--space-xl);margin-bottom:var(--space-lg)">
     <p class="sub" style="margin:0">What should we practice today?</p>
   </div>
   <div class="grid g2 mb" style="gap:var(--space-md)">
